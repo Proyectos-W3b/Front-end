@@ -10,14 +10,14 @@ import Modal from '../../components/ui/Modal';
 import KanbanBoard, { type KanbanColumn } from '../../components/ui/KanbanBoard';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import type {
-  Project, Incidencia, EstadoProyecto, Prioridad, EstadoIncidencia,
+  Project, Incidencia, Prioridad, EstadoIncidencia,
   ActualizacionProyecto, ArchivoProyecto,
 } from '../../types';
 
 type Tab = 'incidencias' | 'actualizaciones' | 'archivos';
 
 const EMPTY_INC: CreateIncidenciaData = {
-  titulo: '', descripcion: '', proyectoId: '', prioridad: 'media', estado: 'abierta',
+  titulo: '', descripcion: '', proyectoId: '', clienteId: '', reportadoPorId: '', prioridad: 'media', estado: 'abierta',
 };
 const EMPTY_ACT: CreateActualizacionData = {
   proyectoId: '', titulo: '', descripcion: '', porcentajeAvance: 0,
@@ -46,7 +46,7 @@ export default function ProjectDetailPage() {
   const [modal,       setModal]       = useState<'editProject' | 'createInc' | 'editInc' | 'createAct' | 'editAct' | 'createArc' | null>(null);
   const [selectedInc, setSelectedInc] = useState<Incidencia | null>(null);
   const [selectedAct, setSelectedAct] = useState<ActualizacionProyecto | null>(null);
-  const [projForm, setProjForm] = useState({ nombre: '', descripcion: '', estado: 'activo' as EstadoProyecto });
+  const [projForm, setProjForm] = useState({ nombre: '', descripcion: '', estado: 'activo' });
   const [incForm,  setIncForm]  = useState<CreateIncidenciaData>(EMPTY_INC);
   const [actForm,  setActForm]  = useState<CreateActualizacionData>(EMPTY_ACT);
   const [arcForm,  setArcForm]  = useState<CreateArchivoProyectoData>(EMPTY_ARC);
@@ -193,8 +193,9 @@ export default function ProjectDetailPage() {
               <p className="text-sm text-slate-500 max-w-2xl">{project.descripcion}</p>
             )}
             <p className="text-xs text-slate-400">
-              Creado: {new Date(project.fecha).toLocaleDateString('es')} ·{' '}
-              Actualizado: {new Date(project.actualizado).toLocaleDateString('es')}
+              Inicio: {new Date(project.fechaInicio).toLocaleDateString('es')}
+              {project.fechaFin && <> · Fin: {new Date(project.fechaFin).toLocaleDateString('es')}</>}
+              {' · '}Tipo: {project.tipo}
             </p>
           </div>
           <button className="btn-secondary btn-sm" onClick={() => { setError(''); setModal('editProject'); }}>
@@ -251,7 +252,7 @@ export default function ProjectDetailPage() {
                   <div className="flex items-center justify-between mb-3">
                     <Badge value={inc.prioridad} />
                     <span className="text-[10px] text-slate-400">
-                      {new Date(inc.createdAt).toLocaleDateString('es')}
+                      {new Date(inc.fechaCreacion).toLocaleDateString('es')}
                     </span>
                   </div>
                   <div className="flex gap-1 pt-2.5 border-t border-slate-50">
@@ -400,7 +401,7 @@ export default function ProjectDetailPage() {
           <div>
             <label className="label">Estado</label>
             <select className="input" value={projForm.estado}
-              onChange={(e) => setProjForm({ ...projForm, estado: e.target.value as EstadoProyecto })}>
+              onChange={(e) => setProjForm({ ...projForm, estado: e.target.value })}>
               <option value="activo">Activo</option>
               <option value="inactivo">Inactivo</option>
               <option value="completado">Completado</option>

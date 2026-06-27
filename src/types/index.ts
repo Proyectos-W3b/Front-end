@@ -1,9 +1,12 @@
 // ─── Auth ────────────────────────────────────────────────────────────────────
+export type UserRole = 'admin' | 'cliente' | 'trabajador';
+
 export interface User {
   id: string;
   nombre: string;
   correo: string;
   rol: string;
+  rolId?: string;
 }
 
 export interface AuthResponse {
@@ -12,31 +15,32 @@ export interface AuthResponse {
 }
 
 // ─── Projects ────────────────────────────────────────────────────────────────
-export type EstadoProyecto = 'activo' | 'inactivo' | 'completado';
-
 export interface Project {
   id: string;
   nombre: string;
-  descripcion?: string;
-  estado: EstadoProyecto;
-  fecha: string;
-  actualizado: string;
-  clienteId?: string;
+  descripcion: string;
+  tipo: string;
+  estado: string;
+  fechaInicio: string;
+  fechaFin?: string;
+  clienteId: string;
 }
 
 // ─── Incidents ───────────────────────────────────────────────────────────────
-export type Prioridad       = 'baja' | 'media' | 'alta' | 'critica';
+export type Prioridad        = 'baja' | 'media' | 'alta' | 'critica';
 export type EstadoIncidencia = 'abierta' | 'en_proceso' | 'resuelta' | 'cerrada';
 
 export interface Incidencia {
   id: string;
   titulo: string;
-  descripcion?: string;
+  descripcion: string;
   prioridad: Prioridad;
   estado: EstadoIncidencia;
   proyectoId: string;
-  createdAt: string;
-  updatedAt: string;
+  clienteId: string;
+  reportadoPorId: string;
+  fechaCreacion: string;
+  fechaActualizacion: string;
 }
 
 // ─── Clientes ─────────────────────────────────────────────────────────────────

@@ -1,4 +1,17 @@
-import { PERMISSIONS } from '../../data/admin.mock';
+const PERMISSIONS = [
+  { modulo: 'Dashboard',             admin: true,  manager: true,  employee: true,  client: true  },
+  { modulo: 'Proyectos — ver',       admin: true,  manager: true,  employee: true,  client: true  },
+  { modulo: 'Proyectos — crear',     admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Proyectos — editar',    admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Proyectos — eliminar',  admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Incidencias — ver',     admin: true,  manager: true,  employee: true,  client: true  },
+  { modulo: 'Incidencias — crear',   admin: true,  manager: true,  employee: false, client: false },
+  { modulo: 'Incidencias — eliminar',admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Clientes — ver',        admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Clientes — gestionar',  admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Admin — usuarios',      admin: true,  manager: false, employee: false, client: false },
+  { modulo: 'Admin — auditoría',     admin: true,  manager: false, employee: false, client: false },
+];
 
 const ROLES = [
   { key: 'admin',    label: 'Admin',    color: 'bg-red-100 text-red-700' },

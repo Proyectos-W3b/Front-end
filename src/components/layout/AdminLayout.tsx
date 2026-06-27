@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAdminAuthStore } from '../../store/admin-auth.store';
+import { useAuthStore } from '../../store/auth.store';
 
 const NAV = [
   { to: '/admin',               icon: '🖥',  label: 'Dashboard',       end: true  },
@@ -10,14 +10,13 @@ const NAV = [
 ];
 
 export default function AdminLayout() {
-  const name    = useAdminAuthStore((s) => s.name);
-  const email   = useAdminAuthStore((s) => s.email);
-  const logout  = useAdminAuthStore((s) => s.logout);
+  const user     = useAuthStore((s) => s.user);
+  const logout   = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    navigate('/admin/login', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -72,11 +71,11 @@ export default function AdminLayout() {
         <div className="px-4 py-4 border-t border-slate-800 space-y-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow shadow-blue-600/40">
-              {name?.[0]?.toUpperCase() ?? 'A'}
+              {user?.nombre?.[0]?.toUpperCase() ?? 'A'}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-slate-200 text-xs font-semibold truncate">{name}</p>
-              <p className="text-slate-600 text-xs truncate">{email}</p>
+              <p className="text-slate-200 text-xs font-semibold truncate">{user?.nombre}</p>
+              <p className="text-slate-600 text-xs truncate">{user?.correo}</p>
             </div>
           </div>
           <button

@@ -1,53 +1,35 @@
-import type { Project, EstadoProyecto } from '../types';
-import { MOCK_PROJECTS } from '../lib/mock-data';
+import { proyectsApi } from './api.service';
+import type { Project } from '../types';
 
 export interface CreateProjectData {
+  clienteId: string;
   nombre: string;
-  descripcion?: string;
-  estado: EstadoProyecto;
-  clienteId?: string;
+  descripcion: string;
+  tipo: string;
+  estado: string;
+  fechaInicio: string;
+  fechaFin?: string;
 }
-
-const store: Project[] = [...MOCK_PROJECTS];
-
-function delay() { return new Promise((r) => setTimeout(r, 200)); }
 
 const projectsService = {
   async getAll(): Promise<Project[]> {
-    await delay();
-    return [...store];
+    return proyectsApi.getAll();
   },
+
   async getOne(id: string): Promise<Project> {
-    await delay();
-    const p = store.find((p) => p.id === id);
-    if (!p) throw new Error('Proyecto no encontrado');
-    return { ...p };
+    return proyectsApi.getOne(id);
   },
+
   async create(data: CreateProjectData): Promise<Project> {
-    await delay();
-    const p: Project = {
-      id:          `p${Date.now()}`,
-      nombre:      data.nombre,
-      descripcion: data.descripcion,
-      estado:      data.estado,
-      clienteId:   data.clienteId,
-      fecha:       new Date().toISOString().split('T')[0],
-      actualizado: new Date().toISOString().split('T')[0],
-    };
-    store.push(p);
-    return p;
+    return proyectsApi.create(data);
   },
+
   async update(id: string, data: Partial<CreateProjectData>): Promise<Project> {
-    await delay();
-    const idx = store.findIndex((p) => p.id === id);
-    if (idx === -1) throw new Error('Proyecto no encontrado');
-    store[idx] = { ...store[idx], ...data, actualizado: new Date().toISOString().split('T')[0] };
-    return store[idx];
+    return proyectsApi.update(id, data);
   },
+
   async remove(id: string): Promise<void> {
-    await delay();
-    const idx = store.findIndex((p) => p.id === id);
-    if (idx !== -1) store.splice(idx, 1);
+    return proyectsApi.remove(id);
   },
 };
 

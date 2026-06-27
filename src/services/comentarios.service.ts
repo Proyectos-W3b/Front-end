@@ -1,30 +1,23 @@
+import { comentariosApi } from './api.service';
+import { useAuthStore } from '../store/auth.store';
 import type { ComentarioIncidencia } from '../types';
-
-const store: ComentarioIncidencia[] = [];
-
-function delay() { return new Promise((r) => setTimeout(r, 200)); }
 
 const comentariosService = {
   async getByIncidencia(incidenciaId: string): Promise<ComentarioIncidencia[]> {
-    await delay();
-    return store.filter((c) => c.incidenciaId === incidenciaId);
+    return comentariosApi.getByIncidencia(incidenciaId);
   },
+
   async create(data: { incidenciaId: string; contenido: string }): Promise<ComentarioIncidencia> {
-    await delay();
-    const c: ComentarioIncidencia = {
-      id:            `com-${Date.now()}`,
-      incidenciaId:  data.incidenciaId,
-      autorId:       'usr-001',
-      contenido:     data.contenido,
-      fechaCreacion: new Date().toISOString(),
-    };
-    store.push(c);
-    return c;
+    const autorId = useAuthStore.getState().user?.id ?? '';
+    return comentariosApi.create({ ...data, autorId });
   },
+
+  async update(id: string, contenido: string): Promise<ComentarioIncidencia> {
+    return comentariosApi.update(id, { contenido });
+  },
+
   async remove(id: string): Promise<void> {
-    await delay();
-    const idx = store.findIndex((c) => c.id === id);
-    if (idx !== -1) store.splice(idx, 1);
+    return comentariosApi.remove(id);
   },
 };
 

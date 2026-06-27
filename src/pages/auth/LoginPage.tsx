@@ -1,21 +1,12 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import authService from '../../services/auth.service';
 import { useAuthStore } from '../../store/auth.store';
-import { DEV_ACCOUNTS } from '../../lib/mock-auth';
 import Spinner from '../../components/ui/Spinner';
 import { Effect } from '../../components/animate-ui/primitives/effects/effect';
 import { SplittingText } from '../../components/animate-ui/primitives/texts/splitting';
 import { Button } from '../../components/animate-ui/primitives/buttons/button';
-import { FlipButton, FlipButtonFront, FlipButtonBack } from '../../components/animate-ui/primitives/buttons/flip';
-
-const ROLE_COLOR: Record<string, string> = {
-  admin:    'bg-red-100    text-red-700',
-  manager:  'bg-purple-100 text-purple-700',
-  employee: 'bg-blue-100   text-blue-700',
-  client:   'bg-gray-100   text-gray-600',
-};
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -38,11 +29,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillAccount = (email: string, password: string) => {
-    setForm({ email, password });
-    setError('');
   };
 
   return (
@@ -208,37 +194,6 @@ export default function LoginPage() {
             </form>
           </Effect>
 
-          {/* Cuentas de prueba */}
-          <Effect slide fade delay={350}
-            transition={{ type: 'spring', stiffness: 160, damping: 24 }}
-          >
-            <div className="pt-5 border-t border-slate-100 space-y-3">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-                Cuentas de prueba
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEV_ACCOUNTS.map((acc) => (
-                  <FlipButton
-                    key={acc.email}
-                    type="button"
-                    from="top"
-                    onClick={() => fillAccount(acc.email, acc.password)}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 overflow-hidden"
-                  >
-                    <FlipButtonFront className="w-full flex items-center justify-between">
-                      <span className="text-xs text-slate-600 capitalize">{acc.role}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${ROLE_COLOR[acc.role]}`}>
-                        {acc.role}
-                      </span>
-                    </FlipButtonFront>
-                    <FlipButtonBack className="w-full flex items-center justify-center">
-                      <span className="text-xs font-medium text-slate-700 truncate">{acc.email}</span>
-                    </FlipButtonBack>
-                  </FlipButton>
-                ))}
-              </div>
-            </div>
-          </Effect>
 
         </div>
         </div>

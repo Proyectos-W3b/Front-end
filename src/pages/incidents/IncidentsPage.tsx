@@ -17,7 +17,7 @@ import type {
 } from '../../types';
 
 const EMPTY: CreateIncidenciaData = {
-  titulo: '', descripcion: '', proyectoId: '', prioridad: 'media', estado: 'abierta',
+  titulo: '', descripcion: '', proyectoId: '', clienteId: '', reportadoPorId: '', prioridad: 'media', estado: 'abierta',
 };
 const EMPTY_ARC: CreateArchivoIncidenciaData = {
   incidenciaId: '', nombre: '', url: '', tipo: 'documento',
@@ -132,8 +132,16 @@ export default function IncidentsPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault(); setSaving(true); setError('');
     try {
-      if (modal === 'create') await incidentsService.create(form);
-      else if (selected)      await incidentsService.update(selected.id, form);
+      if (modal === 'create') {
+        const proyecto = projects.find((p) => p.id === form.proyectoId);
+        await incidentsService.create({
+          ...form,
+          clienteId:      proyecto?.clienteId ?? '',
+          reportadoPorId: user?.id ?? '',
+        });
+      } else if (selected) {
+        await incidentsService.update(selected.id, form);
+      }
       closeModal(); load(filterProject || undefined);
     } catch (err: any) { setError(err?.message ?? 'Error al guardar'); }
     finally { setSaving(false); }

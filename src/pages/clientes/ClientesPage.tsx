@@ -1,48 +1,67 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2 } from 'lucide-react';
-import clientesService, { CreateClienteData, UpdateClienteData } from '../../services/clientes.service';
+import clientesService, { UpdateClienteData } from '../../services/clientes.service';
+import { usuariosApi, rolesApi } from '../../services/api.service';
 import Modal from '../../components/ui/Modal';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/auth.store';
 import type { Cliente } from '../../types';
 
-const EMPTY_FORM: CreateClienteData = { usuarioId: '', empresa: '', telefono: '', direccion: '' };
+interface CreateForm {
+  nombre: string;
+  correo: string;
+  contrasena: string;
+  empresa: string;
+  telefono: string;
+  direccion: string;
+}
+
+interface EditForm {
+  empresa: string;
+  telefono: string;
+  direccion: string;
+}
+
+const EMPTY_CREATE: CreateForm = { nombre: '', correo: '', contrasena: '', empresa: '', telefono: '', direccion: '' };
+const EMPTY_EDIT:   EditForm   = { empresa: '', telefono: '', direccion: '' };
 
 export default function ClientesPage() {
   const user    = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'admin';
 
-  const [clientes, setClientes]   = useState<Cliente[]>([]);
-  const [perfil,   setPerfil]     = useState<Cliente | null>(null);
-  const [loading,  setLoading]    = useState(true);
-  const [modal,    setModal]      = useState<'create' | 'edit' | null>(null);
-  const [selected, setSelected]   = useState<Cliente | null>(null);
-  const [form,     setForm]       = useState<CreateClienteData>(EMPTY_FORM);
-  const [saving,   setSaving]     = useState(false);
-  const [error,    setError]      = useState('');
+  const [clientes,     setClientes]     = useState<Cliente[]>([]);
+  const [clienteRolId, setClienteRolId] = useState('');
+  const [perfil,       setPerfil]       = useState<Cliente | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [modal,        setModal]        = useState<'create' | 'edit' | null>(null);
+  const [selected,     setSelected]     = useState<Cliente | null>(null);
+  const [createForm,   setCreateForm]   = useState<CreateForm>(EMPTY_CREATE);
+  const [editForm,     setEditForm]     = useState<EditForm>(EMPTY_EDIT);
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState('');
 
   const load = async () => {
     setLoading(true);
     try {
       if (isAdmin) {
-        setClientes(await clientesService.getAll());
+        const [c, roles] = await Promise.all([clientesService.getAll(), rolesApi.getAll()]);
+        setClientes(c);
+        const rolCliente = roles.find((r) => r.nombre === 'cliente');
+        if (rolCliente) setClienteRolId(rolCliente.idRol);
       } else {
         setPerfil(await clientesService.getMiPerfil());
       }
-    } catch {
-      // sin datos
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* sin datos */ }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => { setForm(EMPTY_FORM); setError(''); setModal('create'); };
+  const openCreate = () => { setCreateForm(EMPTY_CREATE); setError(''); setModal('create'); };
   const openEdit   = (c: Cliente) => {
     setSelected(c);
-    setForm({ usuarioId: c.usuarioId, empresa: c.empresa, telefono: c.telefono ?? '', direccion: c.direccion ?? '' });
+    setEditForm({ empresa: c.empresa, telefono: c.telefono ?? '', direccion: c.direccion ?? '' });
     setError('');
     setModal('edit');
   };
@@ -54,10 +73,26 @@ export default function ClientesPage() {
     setError('');
     try {
       if (modal === 'create') {
-        await clientesService.create(form);
+        // 1. Crear usuario con rol cliente
+        const newUser = await usuariosApi.create({
+          nombre:     createForm.nombre,
+          correo:     createForm.correo,
+          contrasena: createForm.contrasena,
+          rolId:      clienteRolId,
+        });
+        // 2. Crear perfil de cliente vinculado a ese usuario
+        await clientesService.create({
+          usuarioId: newUser.id,
+          empresa:   createForm.empresa,
+          telefono:  createForm.telefono  || undefined,
+          direccion: createForm.direccion || undefined,
+        });
       } else if (selected) {
-        const updateData: UpdateClienteData = { empresa: form.empresa, telefono: form.telefono, direccion: form.direccion };
-        await clientesService.update(selected.id, updateData);
+        await clientesService.update(selected.id, {
+          empresa:   editForm.empresa,
+          telefono:  editForm.telefono  || undefined,
+          direccion: editForm.direccion || undefined,
+        });
       }
       closeModal();
       load();
@@ -70,14 +105,8 @@ export default function ClientesPage() {
 
   const handleDesactivar = async (id: string) => {
     if (!confirm('¿Desactivar este cliente?')) return;
-    try {
-      await clientesService.desactivar(id);
-      load();
-    } catch { /* noop */ }
+    try { await clientesService.desactivar(id); load(); } catch { /* noop */ }
   };
-
-  const f = (k: keyof CreateClienteData) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
   if (loading) return <FullPageSpinner />;
 
@@ -86,7 +115,6 @@ export default function ClientesPage() {
     return (
       <div className="max-w-lg mx-auto space-y-4 pt-2">
         <h2 className="text-lg font-bold text-slate-900">Mi perfil de cliente</h2>
-
         {!perfil ? (
           <EmptyState message="No tienes un perfil de cliente aún. Contacta al administrador." />
         ) : (
@@ -102,22 +130,18 @@ export default function ClientesPage() {
                 </span>
               </div>
             </div>
-
             <div className="grid grid-cols-1 gap-3 pt-2">
               {perfil.telefono && (
                 <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                  {perfil.telefono}
+                  <Phone className="w-4 h-4 text-slate-400 shrink-0" />{perfil.telefono}
                 </div>
               )}
               {perfil.direccion && (
                 <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                  {perfil.direccion}
+                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />{perfil.direccion}
                 </div>
               )}
             </div>
-
             <p className="text-xs text-slate-400 pt-2">
               Cliente desde {new Date(perfil.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
@@ -135,7 +159,9 @@ export default function ClientesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Clientes</h2>
-          <p className="text-xs text-slate-500 mt-0.5">{clientes.length} cliente{clientes.length !== 1 ? 's' : ''} registrado{clientes.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {clientes.length} cliente{clientes.length !== 1 ? 's' : ''} registrado{clientes.length !== 1 ? 's' : ''}
+          </p>
         </div>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
           <Plus className="w-4 h-4" /> Nuevo cliente
@@ -145,9 +171,9 @@ export default function ClientesPage() {
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total',     value: clientes.length,                                  color: 'text-slate-900' },
-          { label: 'Activos',   value: clientes.filter((c) => c.estaActivo).length,      color: 'text-emerald-600' },
-          { label: 'Inactivos', value: clientes.filter((c) => !c.estaActivo).length,     color: 'text-red-500' },
+          { label: 'Total',     value: clientes.length,                             color: 'text-slate-900'   },
+          { label: 'Activos',   value: clientes.filter((c) => c.estaActivo).length, color: 'text-emerald-600' },
+          { label: 'Inactivos', value: clientes.filter((c) => !c.estaActivo).length,color: 'text-red-500'     },
         ].map((kpi) => (
           <div key={kpi.label} className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_rgba(15,23,42,0.04)] px-5 py-4">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{kpi.label}</p>
@@ -197,18 +223,14 @@ export default function ClientesPage() {
                   </td>
                   <td className="table-td">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openEdit(c)}
+                      <button onClick={() => openEdit(c)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Editar"
-                      >
+                        title="Editar">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        onClick={() => handleDesactivar(c.id)}
+                      <button onClick={() => handleDesactivar(c.id)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Desactivar"
-                      >
+                        title="Desactivar">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -220,47 +242,104 @@ export default function ClientesPage() {
         </div>
       )}
 
-      {/* Modal crear / editar */}
-      <Modal
-        open={modal !== null}
-        onClose={closeModal}
-        title={modal === 'create' ? 'Nuevo cliente' : 'Editar cliente'}
-      >
+      {/* ── Modal CREAR ─────────────────────────────────────────────────── */}
+      <Modal open={modal === 'create'} onClose={closeModal} title="Nuevo cliente">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>
           )}
 
-          {modal === 'create' && (
-            <div>
-              <label className="label">ID de usuario</label>
-              <input className="input" placeholder="UUID del usuario en auth-ms" value={form.usuarioId} onChange={f('usuarioId')} required />
-            </div>
-          )}
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cuenta de acceso</p>
 
           <div>
-            <label className="label">Empresa</label>
-            <input className="input" placeholder="Nombre de la empresa" value={form.empresa} onChange={f('empresa')} required />
+            <label className="label">Nombre completo *</label>
+            <input className="input" placeholder="Juan Pérez"
+              value={createForm.nombre}
+              onChange={(e) => setCreateForm((f) => ({ ...f, nombre: e.target.value }))}
+              required />
+          </div>
+          <div>
+            <label className="label">Correo *</label>
+            <input type="email" className="input" placeholder="cliente@empresa.com"
+              value={createForm.correo}
+              onChange={(e) => setCreateForm((f) => ({ ...f, correo: e.target.value }))}
+              required />
+          </div>
+          <div>
+            <label className="label">Contraseña *</label>
+            <input type="password" className="input" placeholder="Mínimo 6 caracteres"
+              value={createForm.contrasena}
+              onChange={(e) => setCreateForm((f) => ({ ...f, contrasena: e.target.value }))}
+              required />
           </div>
 
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider pt-2">Datos de empresa</p>
+
+          <div>
+            <label className="label">Empresa *</label>
+            <input className="input" placeholder="Nombre de la empresa"
+              value={createForm.empresa}
+              onChange={(e) => setCreateForm((f) => ({ ...f, empresa: e.target.value }))}
+              required />
+          </div>
           <div>
             <label className="label">Teléfono</label>
-            <input className="input" placeholder="+51 999 000 111" value={form.telefono} onChange={f('telefono')} />
+            <input className="input" placeholder="+51 999 000 111"
+              value={createForm.telefono}
+              onChange={(e) => setCreateForm((f) => ({ ...f, telefono: e.target.value }))} />
           </div>
-
           <div>
             <label className="label">Dirección</label>
-            <input className="input" placeholder="Av. Ejemplo 123" value={form.direccion} onChange={f('direccion')} />
+            <input className="input" placeholder="Av. Ejemplo 123"
+              value={createForm.direccion}
+              onChange={(e) => setCreateForm((f) => ({ ...f, direccion: e.target.value }))} />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={closeModal} className="btn-secondary px-4 py-2 text-sm">Cancelar</button>
             <button type="submit" disabled={saving} className="btn-primary px-4 py-2 text-sm">
-              {saving ? 'Guardando…' : modal === 'create' ? 'Crear' : 'Guardar'}
+              {saving ? 'Creando…' : 'Crear cliente'}
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* ── Modal EDITAR ─────────────────────────────────────────────────── */}
+      <Modal open={modal === 'edit'} onClose={closeModal} title="Editar cliente">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>
+          )}
+
+          <div>
+            <label className="label">Empresa *</label>
+            <input className="input"
+              value={editForm.empresa}
+              onChange={(e) => setEditForm((f) => ({ ...f, empresa: e.target.value }))}
+              required />
+          </div>
+          <div>
+            <label className="label">Teléfono</label>
+            <input className="input"
+              value={editForm.telefono}
+              onChange={(e) => setEditForm((f) => ({ ...f, telefono: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Dirección</label>
+            <input className="input"
+              value={editForm.direccion}
+              onChange={(e) => setEditForm((f) => ({ ...f, direccion: e.target.value }))} />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={closeModal} className="btn-secondary px-4 py-2 text-sm">Cancelar</button>
+            <button type="submit" disabled={saving} className="btn-primary px-4 py-2 text-sm">
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
     </div>
   );
 }

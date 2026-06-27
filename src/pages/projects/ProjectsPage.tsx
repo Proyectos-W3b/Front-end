@@ -8,9 +8,12 @@ import Modal from '../../components/ui/Modal';
 import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
-import type { Project, Cliente, EstadoProyecto } from '../../types';
+import type { Project, Cliente } from '../../types';
 
-const EMPTY_FORM: CreateProjectData = { nombre: '', descripcion: '', estado: 'activo', clienteId: '' };
+const EMPTY_FORM: CreateProjectData = {
+  clienteId: '', nombre: '', descripcion: '', tipo: 'software',
+  estado: 'activo', fechaInicio: new Date().toISOString().split('T')[0],
+};
 
 export default function ProjectsPage() {
   const [projects,  setProjects]  = useState<Project[]>([]);
@@ -42,7 +45,10 @@ export default function ProjectsPage() {
   const openCreate = () => { setForm(EMPTY_FORM); setError(''); setModal('create'); };
   const openEdit   = (p: Project) => {
     setSelected(p);
-    setForm({ nombre: p.nombre, descripcion: p.descripcion ?? '', estado: p.estado, clienteId: p.clienteId ?? '' });
+    setForm({
+      clienteId: p.clienteId, nombre: p.nombre, descripcion: p.descripcion,
+      tipo: p.tipo, estado: p.estado, fechaInicio: p.fechaInicio, fechaFin: p.fechaFin,
+    });
     setError('');
     setModal('edit');
   };
@@ -52,9 +58,8 @@ export default function ProjectsPage() {
     e.preventDefault();
     setSaving(true); setError('');
     try {
-      const payload = { ...form, clienteId: form.clienteId || undefined };
-      if (modal === 'create') await projectsService.create(payload);
-      else if (selected)      await projectsService.update(selected.id, payload);
+      if (modal === 'create') await projectsService.create(form);
+      else if (selected)      await projectsService.update(selected.id, form);
       closeModal(); load();
     } catch (err: any) { setError(err?.message ?? 'Error al guardar'); }
     finally { setSaving(false); }
@@ -69,10 +74,8 @@ export default function ProjectsPage() {
     {
       key: 'nombre', header: 'Nombre',
       render: (p) => (
-        <Link
-          to={`/projects/${p.id}`}
-          className="font-semibold text-slate-800 hover:text-blue-600 transition-colors inline-flex items-center gap-1"
-        >
+        <Link to={`/projects/${p.id}`}
+          className="font-semibold text-slate-800 hover:text-blue-600 transition-colors inline-flex items-center gap-1">
           {p.nombre} <ExternalLink className="w-3 h-3 opacity-40" />
         </Link>
       ),
@@ -81,28 +84,23 @@ export default function ProjectsPage() {
       key: 'cliente', header: 'Cliente',
       render: (p) => (
         <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
-          {p.clienteId
-            ? <><Building2 className="w-3.5 h-3.5 text-slate-400" />{clienteName(p.clienteId)}</>
-            : <span className="text-slate-300">Sin cliente</span>
-          }
+          <Building2 className="w-3.5 h-3.5 text-slate-400" />{clienteName(p.clienteId)}
         </span>
       ),
     },
     {
-      key: 'descripcion', header: 'Descripción',
-      render: (p) => (
-        <span className="text-slate-500 text-xs line-clamp-1">{p.descripcion || '—'}</span>
-      ),
+      key: 'tipo', header: 'Tipo',
+      render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span>,
     },
     {
       key: 'estado', header: 'Estado',
       render: (p) => <Badge value={p.estado} />,
     },
     {
-      key: 'fecha', header: 'Fecha',
+      key: 'fechaInicio', header: 'Inicio',
       render: (p) => (
         <span className="text-slate-400 text-xs">
-          {p.fecha ? new Date(p.fecha).toLocaleDateString('es') : '—'}
+          {p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es') : '—'}
         </span>
       ),
     },
@@ -141,48 +139,65 @@ export default function ProjectsPage() {
         <DataTable columns={COLUMNS} data={projects} emptyText="Sin proyectos registrados" />
       )}
 
-      <Modal
-        open={modal !== null}
-        onClose={closeModal}
-        title={modal === 'create' ? 'Nuevo proyecto' : 'Editar proyecto'}
-      >
+      <Modal open={modal !== null} onClose={closeModal}
+        title={modal === 'create' ? 'Nuevo proyecto' : 'Editar proyecto'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>
           )}
+          <div>
+            <label className="label">Cliente *</label>
+            <select className="input" value={form.clienteId}
+              onChange={(e) => setForm({ ...form, clienteId: e.target.value })} required>
+              <option value="">Seleccionar cliente</option>
+              {clientes.map((c) => <option key={c.id} value={c.id}>{c.empresa}</option>)}
+            </select>
+          </div>
           <div>
             <label className="label">Nombre *</label>
             <input className="input" value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
           </div>
           <div>
-            <label className="label">Descripción</label>
-            <textarea className="input resize-none" rows={3} value={form.descripcion ?? ''}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
+            <label className="label">Descripción *</label>
+            <textarea className="input resize-none" rows={3} value={form.descripcion}
+              onChange={(e) => setForm({ ...form, descripcion: e.target.value })} required />
           </div>
-
-          {/* Relación con cliente */}
-          <div>
-            <label className="label">Cliente asociado</label>
-            <select className="input" value={form.clienteId ?? ''}
-              onChange={(e) => setForm({ ...form, clienteId: e.target.value })}>
-              <option value="">Sin cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>{c.empresa}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Tipo *</label>
+              <select className="input" value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value })} required>
+                <option value="software">Software</option>
+                <option value="hardware">Hardware</option>
+                <option value="consultoria">Consultoría</option>
+                <option value="soporte">Soporte</option>
+                <option value="infraestructura">Infraestructura</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Estado</label>
+              <select className="input" value={form.estado}
+                onChange={(e) => setForm({ ...form, estado: e.target.value })}>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="completado">Completado</option>
+              </select>
+            </div>
           </div>
-
-          <div>
-            <label className="label">Estado</label>
-            <select className="input" value={form.estado}
-              onChange={(e) => setForm({ ...form, estado: e.target.value as EstadoProyecto })}>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-              <option value="completado">Completado</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Fecha inicio *</label>
+              <input type="date" className="input" value={form.fechaInicio}
+                onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })} required />
+            </div>
+            <div>
+              <label className="label">Fecha fin</label>
+              <input type="date" className="input" value={form.fechaFin ?? ''}
+                onChange={(e) => setForm({ ...form, fechaFin: e.target.value || undefined })} />
+            </div>
           </div>
-
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
             <button type="submit" className="btn-primary" disabled={saving}>

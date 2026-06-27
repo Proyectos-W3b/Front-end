@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { SYSTEM_STATS, MOCK_LOGS, MOCK_USERS } from '../../data/admin.mock';
+import { useState, useEffect } from 'react';
+import { usuariosApi } from '../../services/api.service';
+import { proyectsApi } from '../../services/api.service';
+import { incidenciasApi } from '../../services/api.service';
 import Badge from '../../components/ui/Badge';
+import type { User, Project, Incidencia } from '../../types';
 
 interface StatCardProps {
   label: string;
@@ -32,19 +35,29 @@ function StatusDot({ ok }: { ok: boolean }) {
 }
 
 const SERVICES = [
-  { name: 'API Gateway',   port: 3003, status: true },
-  { name: 'Auth MS',       port: 3000, status: true },
-  { name: 'Projects MS',   port: 3001, status: true },
-  { name: 'Incidents MS',  port: 3002, status: true },
-  { name: 'RRHH MS',       port: 3004, status: true },
+  { name: 'API Gateway',   port: 3000, status: true },
+  { name: 'Auth MS',       port: null, status: true },
+  { name: 'Projects MS',   port: null, status: true },
+  { name: 'Incidents MS',  port: null, status: true },
+  { name: 'Client MS',     port: null, status: true },
   { name: 'NATS Broker',   port: 4222, status: true },
-  { name: 'PostgreSQL',    port: 5432, status: true },
 ];
 
 export default function AdminDashboardPage() {
   const [refreshed] = useState(new Date().toLocaleTimeString('es'));
-  const recentLogs = MOCK_LOGS.slice(0, 6);
-  const recentUsers = MOCK_USERS.slice(0, 5);
+  const [usuarios,    setUsuarios]    = useState<User[]>([]);
+  const [proyectos,   setProyectos]   = useState<Project[]>([]);
+  const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
+
+  useEffect(() => {
+    usuariosApi.getAll().then(setUsuarios).catch(() => {});
+    proyectsApi.getAll().then(setProyectos).catch(() => {});
+    incidenciasApi.getAll({ limit: 100 }).then(setIncidencias).catch(() => {});
+  }, []);
+
+  const activos        = proyectos.filter((p) => p.estado === 'activo').length;
+  const abiertas       = incidencias.filter((i) => i.estado === 'abierta' || i.estado === 'en_proceso').length;
+  const recentUsers    = usuarios.slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -60,21 +73,21 @@ export default function AdminDashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Usuarios" value={SYSTEM_STATS.totalUsuarios}
-          sub={`${SYSTEM_STATS.usuariosActivos} activos`}
+        <StatCard label="Usuarios" value={usuarios.length}
+          sub={`${usuarios.length} registrados`}
           color="bg-blue-100 text-blue-600" icon="👤" />
-        <StatCard label="Proyectos" value={SYSTEM_STATS.totalProyectos}
-          sub={`${SYSTEM_STATS.proyectosActivos} en curso`}
+        <StatCard label="Proyectos" value={proyectos.length}
+          sub={`${activos} en curso`}
           color="bg-green-100 text-green-600" icon="📁" />
-        <StatCard label="Incidencias" value={SYSTEM_STATS.totalIncidencias}
-          sub={`${SYSTEM_STATS.incidenciasAbiertas} abiertas`}
+        <StatCard label="Incidencias" value={incidencias.length}
+          sub={`${abiertas} abiertas`}
           color="bg-orange-100 text-orange-600" icon="⚠" />
-        <StatCard label="Uptime" value={`${SYSTEM_STATS.uptimeDias}d`}
-          sub={`v${SYSTEM_STATS.versionSistema}`}
+        <StatCard label="Sistema" value="Online"
+          sub="v1.0.0"
           color="bg-purple-100 text-purple-600" icon="⚡" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Estado de servicios */}
         <div className="card space-y-3">
           <h3 className="font-semibold text-gray-800 text-sm">Estado de Microservicios</h3>
@@ -85,7 +98,7 @@ export default function AdminDashboardPage() {
                   <StatusDot ok={s.status} />
                   <span className="text-sm font-medium text-gray-700">{s.name}</span>
                 </div>
-                <span className="text-xs text-gray-400 font-mono">:{s.port}</span>
+                {s.port && <span className="text-xs text-gray-400 font-mono">:{s.port}</span>}
               </div>
             ))}
           </div>
@@ -97,39 +110,24 @@ export default function AdminDashboardPage() {
         {/* Usuarios recientes */}
         <div className="card space-y-3">
           <h3 className="font-semibold text-gray-800 text-sm">Usuarios Recientes</h3>
-          <div className="space-y-2">
-            {recentUsers.map((u) => (
-              <div key={u.id} className="flex items-center gap-2 py-1">
-                <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {u.nombre[0]}
+          {recentUsers.length === 0 ? (
+            <p className="text-sm text-gray-400">Cargando usuarios...</p>
+          ) : (
+            <div className="space-y-2">
+              {recentUsers.map((u) => (
+                <div key={u.id} className="flex items-center gap-2 py-1">
+                  <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {u.nombre[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800 truncate">{u.nombre}</p>
+                    <p className="text-xs text-gray-400 truncate">{u.correo}</p>
+                  </div>
+                  <Badge value={u.rol} />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-800 truncate">{u.nombre} {u.apellido}</p>
-                  <p className="text-xs text-gray-400 truncate">{u.email}</p>
-                </div>
-                <Badge value={u.role} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Actividad reciente */}
-        <div className="card space-y-3">
-          <h3 className="font-semibold text-gray-800 text-sm">Actividad Reciente</h3>
-          <div className="space-y-2">
-            {recentLogs.map((log) => (
-              <div key={log.id} className="flex items-start gap-2 py-1 border-b border-gray-50 last:border-0">
-                <span className={`mt-0.5 inline-block w-2 h-2 rounded-full flex-shrink-0 ${
-                  log.resultado === 'exitoso' ? 'bg-green-500' :
-                  log.resultado === 'fallido' ? 'bg-red-500' : 'bg-yellow-500'
-                }`} />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-700 truncate">{log.accion}</p>
-                  <p className="text-xs text-gray-400 truncate">{log.usuario.split('@')[0]} · {log.modulo}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

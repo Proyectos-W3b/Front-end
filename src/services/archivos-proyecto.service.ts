@@ -1,3 +1,4 @@
+import { archivosProyectoApi } from './api.service';
 import type { ArchivoProyecto } from '../types';
 
 export interface CreateArchivoProyectoData {
@@ -7,32 +8,25 @@ export interface CreateArchivoProyectoData {
   tipo: string;
 }
 
-const store: ArchivoProyecto[] = [];
-
-function delay() { return new Promise((r) => setTimeout(r, 200)); }
-
 const archivosProyectoService = {
   async getByProyecto(proyectoId: string): Promise<ArchivoProyecto[]> {
-    await delay();
-    return store.filter((a) => a.proyectoId === proyectoId);
+    return archivosProyectoApi.getByProyecto(proyectoId);
   },
+
+  async getOne(id: string): Promise<ArchivoProyecto> {
+    return archivosProyectoApi.getOne(id);
+  },
+
   async create(data: CreateArchivoProyectoData): Promise<ArchivoProyecto> {
-    await delay();
-    const a: ArchivoProyecto = {
-      id:         `arc-${Date.now()}`,
-      proyectoId: data.proyectoId,
-      nombre:     data.nombre,
-      url:        data.url,
-      tipo:       data.tipo,
-      fecha:      new Date().toISOString().split('T')[0],
-    };
-    store.push(a);
-    return a;
+    return archivosProyectoApi.create(data);
   },
+
+  async update(id: string, data: Partial<{ nombre: string; url: string; tipo: string }>): Promise<ArchivoProyecto> {
+    return archivosProyectoApi.update(id, data);
+  },
+
   async remove(id: string): Promise<void> {
-    await delay();
-    const idx = store.findIndex((a) => a.id === id);
-    if (idx !== -1) store.splice(idx, 1);
+    return archivosProyectoApi.remove(id);
   },
 };
 

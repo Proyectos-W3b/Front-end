@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { MOCK_LOGS, AuditLog } from '../../data/admin.mock';
+
+interface AuditLog {
+  id: string; accion: string; usuario: string; modulo: string;
+  ip: string; fecha: string; resultado: 'exitoso' | 'fallido' | 'advertencia';
+}
+
+const SAMPLE_LOGS: AuditLog[] = [
+  { id: '1', accion: 'Inicio de sesión',          usuario: 'admin@empresa.com',  modulo: 'Auth',       ip: '192.168.1.10', fecha: new Date().toISOString(), resultado: 'exitoso' },
+  { id: '2', accion: 'Crear proyecto',             usuario: 'admin@empresa.com',  modulo: 'Proyectos',  ip: '192.168.1.10', fecha: new Date(Date.now() - 3600000).toISOString(), resultado: 'exitoso' },
+  { id: '3', accion: 'Intento de acceso denegado', usuario: 'unknown@hack.com',   modulo: 'Auth',       ip: '203.0.113.55', fecha: new Date(Date.now() - 7200000).toISOString(), resultado: 'fallido' },
+];
 
 type Resultado = AuditLog['resultado'] | '';
 
@@ -10,7 +20,7 @@ const RESULT_STYLE: Record<AuditLog['resultado'], string> = {
 };
 
 export default function AuditoriaPage() {
-  const [logs]          = useState<AuditLog[]>(MOCK_LOGS);
+  const [logs]          = useState<AuditLog[]>(SAMPLE_LOGS);
   const [filterResult, setFilterResult] = useState<Resultado>('');
   const [filterModule, setFilterModule] = useState('');
   const [search, setSearch]             = useState('');
