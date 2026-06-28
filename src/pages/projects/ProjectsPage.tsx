@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal';
 import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
+import { useAuthStore } from '../../store/auth.store';
 import type { Project, Cliente } from '../../types';
 
 const EMPTY_FORM: CreateProjectData = {
@@ -16,6 +17,8 @@ const EMPTY_FORM: CreateProjectData = {
 };
 
 export default function ProjectsPage() {
+  const user    = useAuthStore((s) => s.user);
+  const isAdmin = user?.rol === 'admin';
   const [projects,  setProjects]  = useState<Project[]>([]);
   const [clientes,  setClientes]  = useState<Cliente[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -30,7 +33,7 @@ export default function ProjectsPage() {
     try {
       const [p, c] = await Promise.all([
         projectsService.getAll(),
-        clientesService.getAll(),
+        isAdmin ? clientesService.getAll() : Promise.resolve([]),
       ]);
       setProjects(p);
       setClientes(c);
@@ -70,7 +73,7 @@ export default function ProjectsPage() {
     await projectsService.remove(id); load();
   };
 
-  const COLUMNS: DataTableColumn<Project>[] = [
+  const COLUMNS_ADMIN: DataTableColumn<Project>[] = [
     {
       key: 'nombre', header: 'Nombre',
       render: (p) => (
@@ -88,21 +91,11 @@ export default function ProjectsPage() {
         </span>
       ),
     },
-    {
-      key: 'tipo', header: 'Tipo',
-      render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span>,
-    },
-    {
-      key: 'estado', header: 'Estado',
-      render: (p) => <Badge value={p.estado} />,
-    },
+    { key: 'tipo',   header: 'Tipo',   render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span> },
+    { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
     {
       key: 'fechaInicio', header: 'Inicio',
-      render: (p) => (
-        <span className="text-slate-400 text-xs">
-          {p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es') : '—'}
-        </span>
-      ),
+      render: (p) => <span className="text-slate-400 text-xs">{p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es') : '—'}</span>,
     },
     {
       key: 'acciones', header: 'Acciones', className: 'text-right',
@@ -115,28 +108,52 @@ export default function ProjectsPage() {
     },
   ];
 
+  const COLUMNS_CLIENTE: DataTableColumn<Project>[] = [
+    {
+      key: 'nombre', header: 'Proyecto',
+      render: (p) => (
+        <Link to={`/projects/${p.id}`}
+          className="font-semibold text-slate-800 hover:text-blue-600 transition-colors inline-flex items-center gap-1">
+          {p.nombre} <ExternalLink className="w-3 h-3 opacity-40" />
+        </Link>
+      ),
+    },
+    { key: 'tipo',   header: 'Tipo',   render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span> },
+    { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
+    {
+      key: 'fechaInicio', header: 'Inicio',
+      render: (p) => <span className="text-slate-400 text-xs">{p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es') : '—'}</span>,
+    },
+    {
+      key: 'acciones', header: '', className: 'text-right',
+      render: (p) => (
+        <Link to={`/projects/${p.id}`} className="btn btn-secondary btn-sm">Ver detalles</Link>
+      ),
+    },
+  ];
+
   if (loading) return <FullPageSpinner />;
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Proyectos</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{isAdmin ? 'Proyectos' : 'Mis Proyectos'}</h2>
           <p className="text-sm text-slate-500">
             {projects.length} proyecto{projects.length !== 1 ? 's' : ''} registrado{projects.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button className="btn-primary" onClick={openCreate}>+ Nuevo proyecto</button>
+        {isAdmin && <button className="btn-primary" onClick={openCreate}>+ Nuevo proyecto</button>}
       </div>
 
       {projects.length === 0 ? (
         <EmptyState
           title="Sin proyectos"
-          description="Crea el primer proyecto para comenzar"
-          action={{ label: '+ Nuevo proyecto', onClick: openCreate }}
+          description={isAdmin ? 'Crea el primer proyecto para comenzar' : 'No tienes proyectos asignados aún'}
+          action={isAdmin ? { label: '+ Nuevo proyecto', onClick: openCreate } : undefined}
         />
       ) : (
-        <DataTable columns={COLUMNS} data={projects} emptyText="Sin proyectos registrados" />
+        <DataTable columns={isAdmin ? COLUMNS_ADMIN : COLUMNS_CLIENTE} data={projects} emptyText="Sin proyectos registrados" />
       )}
 
       <Modal open={modal !== null} onClose={closeModal}

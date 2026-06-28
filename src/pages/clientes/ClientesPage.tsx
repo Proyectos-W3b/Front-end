@@ -1,5 +1,5 @@
-import { useEffect, useState, FormEvent } from 'react';
-import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useState, FormEvent, useRef } from 'react';
+import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2, Camera } from 'lucide-react';
 import clientesService, { UpdateClienteData } from '../../services/clientes.service';
 import { usuariosApi, rolesApi } from '../../services/api.service';
 import Modal from '../../components/ui/Modal';
@@ -27,7 +27,8 @@ const EMPTY_CREATE: CreateForm = { nombre: '', correo: '', contrasena: '', empre
 const EMPTY_EDIT:   EditForm   = { empresa: '', telefono: '', direccion: '' };
 
 export default function ClientesPage() {
-  const user    = useAuthStore((s) => s.user);
+  const { user, setAuth } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const isAdmin = user?.rol === 'admin';
 
   const [clientes,     setClientes]     = useState<Cliente[]>([]);
@@ -108,45 +109,129 @@ export default function ClientesPage() {
     try { await clientesService.desactivar(id); load(); } catch { /* noop */ }
   };
 
+  // ── Estado edición perfil (vista cliente) ─────────────────────────────
+  const fotoKey = `foto_perfil_${user?.id}`;
+  const [foto,         setFoto]         = useState<string>(() => localStorage.getItem(fotoKey) ?? '');
+  const [editNombre,   setEditNombre]   = useState(false);
+  const [nuevoNombre,  setNuevoNombre]  = useState(user?.nombre ?? '');
+  const [savingNombre, setSavingNombre] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      localStorage.setItem(fotoKey, base64);
+      setFoto(base64);
+      window.dispatchEvent(new Event('foto-perfil-updated'));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGuardarNombre = async () => {
+    if (!user || !nuevoNombre.trim()) return;
+    setSavingNombre(true);
+    try {
+      const updated = await usuariosApi.update(user.id, { nombre: nuevoNombre.trim() });
+      setAuth({ ...user, nombre: updated.nombre }, token!);
+      setEditNombre(false);
+    } catch { /* noop */ }
+    finally { setSavingNombre(false); }
+  };
+
   if (loading) return <FullPageSpinner />;
 
   /* ── Vista cliente: mi perfil ───────────────────────────────────────── */
   if (!isAdmin) {
     return (
       <div className="max-w-lg mx-auto space-y-4 pt-2">
-        <h2 className="text-lg font-bold text-slate-900">Mi perfil de cliente</h2>
-        {!perfil ? (
-          <EmptyState message="No tienes un perfil de cliente aún. Contacta al administrador." />
-        ) : (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">{perfil.empresa}</h3>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${perfil.estaActivo ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                  {perfil.estaActivo ? 'Activo' : 'Inactivo'}
-                </span>
-              </div>
+        <h2 className="text-lg font-bold text-slate-900">Mi perfil</h2>
+
+        {/* Tarjeta personal */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] p-6 space-y-5">
+
+          {/* Avatar + foto */}
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              {foto ? (
+                <img src={foto} alt="foto" className="w-16 h-16 rounded-full object-cover ring-2 ring-blue-100" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
+                  {user?.nombre?.[0]?.toUpperCase()}
+                </div>
+              )}
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center hover:bg-slate-50"
+                title="Cambiar foto"
+              >
+                <Camera className="w-3 h-3 text-slate-500" />
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
             </div>
-            <div className="grid grid-cols-1 gap-3 pt-2">
+
+            {/* Nombre editable */}
+            <div className="flex-1">
+              {editNombre ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input flex-1 text-sm"
+                    value={nuevoNombre}
+                    onChange={(e) => setNuevoNombre(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleGuardarNombre}
+                    disabled={savingNombre}
+                    className="btn-primary px-3 py-1.5 text-xs"
+                  >
+                    {savingNombre ? '...' : 'Guardar'}
+                  </button>
+                  <button onClick={() => setEditNombre(false)} className="btn-secondary px-3 py-1.5 text-xs">
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold text-slate-900">{user?.nombre}</span>
+                  <button onClick={() => { setNuevoNombre(user?.nombre ?? ''); setEditNombre(true); }}
+                    className="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mt-0.5 capitalize">{user?.rol}</p>
+            </div>
+          </div>
+
+          {/* Info empresa */}
+          {perfil && (
+            <div className="border-t border-slate-50 pt-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Building2 className="w-4 h-4 text-slate-400" />{perfil.empresa}
+              </div>
               {perfil.telefono && (
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Phone className="w-4 h-4 text-slate-400 shrink-0" />{perfil.telefono}
                 </div>
               )}
               {perfil.direccion && (
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0" />{perfil.direccion}
                 </div>
               )}
+              <p className="text-xs text-slate-400 pt-1">
+                Cliente desde {new Date(perfil.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
             </div>
-            <p className="text-xs text-slate-400 pt-2">
-              Cliente desde {new Date(perfil.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
-        )}
+          )}
+
+          {!perfil && (
+            <EmptyState message="No tienes un perfil de empresa aún. Contacta al administrador." />
+          )}
+        </div>
       </div>
     );
   }

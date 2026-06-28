@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, X, Bell } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
@@ -11,6 +12,17 @@ interface HeaderProps {
 export default function Header({ title, onToggle, sidebarOpen }: HeaderProps) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  const [fotoPerfil, setFotoPerfil] = useState(() =>
+    user?.id ? (localStorage.getItem(`foto_perfil_${user.id}`) ?? '') : '',
+  );
+
+  useEffect(() => {
+    const handler = () =>
+      setFotoPerfil(user?.id ? (localStorage.getItem(`foto_perfil_${user.id}`) ?? '') : '');
+    window.addEventListener('foto-perfil-updated', handler);
+    return () => window.removeEventListener('foto-perfil-updated', handler);
+  }, [user?.id]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -51,9 +63,13 @@ export default function Header({ title, onToggle, sidebarOpen }: HeaderProps) {
             </p>
             <p className="text-[11px] text-slate-500 leading-tight capitalize">{user?.rol}</p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm shadow-blue-200/60">
-            {user?.nombre?.[0]?.toUpperCase()}
-          </div>
+          {fotoPerfil ? (
+            <img src={fotoPerfil} alt="avatar" className="w-8 h-8 rounded-full object-cover shrink-0 shadow-sm" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm shadow-blue-200/60">
+              {user?.nombre?.[0]?.toUpperCase()}
+            </div>
+          )}
         </div>
 
         <button

@@ -72,17 +72,10 @@ export const usuariosApi = {
 };
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
-// El backend no expone GET /roles, se derivan de los usuarios existentes
 export const rolesApi = {
   async getAll(): Promise<{ idRol: string; nombre: string }[]> {
-    const { data } = await api.get('/usuarios');
-    const seen = new Map<string, string>();
-    for (const raw of Array.isArray(data) ? data : []) {
-      if (raw.rol && typeof raw.rol === 'object' && raw.rol.idRol) {
-        seen.set(raw.rol.idRol, raw.rol.nombre);
-      }
-    }
-    return Array.from(seen.entries()).map(([idRol, nombre]) => ({ idRol, nombre }));
+    const { data } = await api.get('/roles');
+    return data;
   },
 };
 

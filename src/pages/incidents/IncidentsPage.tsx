@@ -91,7 +91,7 @@ export default function IncidentsPage() {
       const [i, p, c] = await Promise.all([
         incidentsService.getAll(proyectoId || undefined),
         projectsService.getAll(),
-        clientesService.getAll(),
+        isAdmin ? clientesService.getAll() : Promise.resolve([]),
       ]);
       setIncidents(i);
       setProjects(p);
@@ -234,7 +234,7 @@ export default function IncidentsPage() {
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${PRIORIDAD_DOT[inc.prioridad]}`} title={inc.prioridad} />
               </div>
               <p className="text-[11px] text-slate-500 truncate">{projectName(inc.proyectoId)}</p>
-              {clienteName(inc.proyectoId) && (
+              {isAdmin && clienteName(inc.proyectoId) && (
                 <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
                   {clienteName(inc.proyectoId)}
@@ -298,7 +298,7 @@ export default function IncidentsPage() {
               {projects.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
             <div>
               <label className="label">Prioridad</label>
               <select className="input" value={form.prioridad}
@@ -309,16 +309,18 @@ export default function IncidentsPage() {
                 <option value="critica">Crítica</option>
               </select>
             </div>
-            <div>
-              <label className="label">Estado</label>
-              <select className="input" value={form.estado}
-                onChange={(e) => setForm({ ...form, estado: e.target.value as EstadoIncidencia })}>
-                <option value="abierta">Abierta</option>
-                <option value="en_proceso">En proceso</option>
-                <option value="resuelta">Resuelta</option>
-                <option value="cerrada">Cerrada</option>
-              </select>
-            </div>
+            {isAdmin && (
+              <div>
+                <label className="label">Estado</label>
+                <select className="input" value={form.estado}
+                  onChange={(e) => setForm({ ...form, estado: e.target.value as EstadoIncidencia })}>
+                  <option value="abierta">Abierta</option>
+                  <option value="en_proceso">En proceso</option>
+                  <option value="resuelta">Resuelta</option>
+                  <option value="cerrada">Cerrada</option>
+                </select>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
