@@ -7,6 +7,7 @@ import Spinner from '../../components/ui/Spinner';
 import { Effect } from '../../components/animate-ui/primitives/effects/effect';
 import { SplittingText } from '../../components/animate-ui/primitives/texts/splitting';
 import { Button } from '../../components/animate-ui/primitives/buttons/button';
+import videoFondo from '../../components/videofondo.mp4';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -35,9 +36,19 @@ export default function LoginPage() {
     <div className="flex h-screen w-full overflow-hidden">
 
       {/* ── IZQUIERDA ──────────────────────────────────────────────────────── */}
-      <div className="hidden md:flex w-1/2 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 flex-col justify-between p-12 relative overflow-hidden">
-        <div className="absolute top-[-80px] left-[-80px] w-[360px] h-[360px] rounded-full bg-blue-600/10 blur-3xl" />
-        <div className="absolute bottom-[-60px] right-[-60px] w-[300px] h-[300px] rounded-full bg-indigo-600/15 blur-3xl" />
+      <div className="hidden md:flex w-1/2 flex-col justify-between p-12 relative overflow-hidden bg-slate-900">
+
+        {/* Video de fondo */}
+        <video
+          src={videoFondo}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Overlay oscuro para legibilidad del texto */}
+        <div className="absolute inset-0 bg-slate-900/60" />
 
         {/* Tipografía editorial */}
         <div className="relative z-10 flex flex-col justify-center flex-1 gap-2">
@@ -107,7 +118,7 @@ export default function LoginPage() {
           transition={{ type: 'spring', stiffness: 160, damping: 24 }}
           className="relative z-10"
         >
-          <p className="text-slate-600 text-xs">© 2025 PortalSeguimiento</p>
+          <p className="text-slate-600 text-xs">PortalSeguimiento</p>
         </Effect>
       </div>
 
@@ -203,7 +214,7 @@ export default function LoginPage() {
           transition={{ type: 'spring', stiffness: 180, damping: 24 }}
           className="px-10 xl:px-14 pb-8"
         >
-          <p className="text-xs text-slate-300 text-center">© 2025 PortalSeguimiento</p>
+          <p className="text-xs text-slate-300 text-center">PortalSeguimiento</p>
         </Effect>
 
       </div>

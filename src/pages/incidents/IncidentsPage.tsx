@@ -152,6 +152,21 @@ export default function IncidentsPage() {
     await incidentsService.remove(id); load(filterProject || undefined);
   };
 
+  const handleMove = async (incidenciaId: string, newEstado: string) => {
+    const inc = incidents.find((i) => i.id === incidenciaId);
+    if (!inc || inc.estado === newEstado) return;
+    setIncidents((prev) =>
+      prev.map((i) => i.id === incidenciaId ? { ...i, estado: newEstado as any } : i),
+    );
+    try {
+      await incidentsService.update(incidenciaId, { estado: newEstado as any });
+    } catch {
+      setIncidents((prev) =>
+        prev.map((i) => i.id === incidenciaId ? { ...i, estado: inc.estado } : i),
+      );
+    }
+  };
+
   const sendComment = async (e: FormEvent) => {
     e.preventDefault();
     if (!selected || !newComment.trim()) return;
@@ -225,6 +240,7 @@ export default function IncidentsPage() {
           columns={INCIDENCIA_COLUMNS}
           items={incidents}
           getColumnKey={(inc) => inc.estado}
+          onMove={isAdmin ? handleMove : undefined}
           renderCard={(inc) => (
             <div className="p-4 space-y-2.5">
               <div className="flex items-start justify-between gap-2">
