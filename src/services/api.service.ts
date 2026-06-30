@@ -114,7 +114,7 @@ export const clientesApi = {
   },
 
   async update(id: string, payload: Partial<{ empresa: string; telefono: string; direccion: string }>): Promise<Cliente> {
-    const { data } = await api.patch(`/clientes/${id}`, payload);
+    const { data } = await api.patch(`/clientes/${id}`, { ...payload, id });
     return data;
   },
 
@@ -149,7 +149,7 @@ export const proyectsApi = {
   },
 
   async update(id: string, payload: Partial<{ nombre: string; descripcion: string; tipo: string; estado: string; fechaInicio: string; fechaFin: string }>): Promise<Project> {
-    const { data } = await api.patch(`/proyects/${id}`, payload);
+    const { data } = await api.patch(`/proyects/${id}`, { ...payload, id });
     return data;
   },
 
@@ -172,10 +172,8 @@ export const incidenciasApi = {
 
   async create(payload: {
     titulo: string;
-    descripcion?: string;
+    descripcion: string;
     proyectoId: string;
-    clienteId: string;
-    reportadoPorId: string;
     prioridad: Prioridad;
     estado: EstadoIncidencia;
   }): Promise<Incidencia> {

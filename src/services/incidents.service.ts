@@ -5,8 +5,6 @@ export interface CreateIncidenciaData {
   titulo: string;
   descripcion: string;
   proyectoId: string;
-  clienteId?: string;
-  reportadoPorId?: string;
   prioridad: Prioridad;
   estado: EstadoIncidencia;
 }

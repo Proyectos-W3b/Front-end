@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent, useRef } from 'react';
-import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2, Camera } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2, Camera, Eye } from 'lucide-react';
 import clientesService, { UpdateClienteData } from '../../services/clientes.service';
 import { usuariosApi, rolesApi } from '../../services/api.service';
 import Modal from '../../components/ui/Modal';
@@ -308,6 +309,11 @@ export default function ClientesPage() {
                   </td>
                   <td className="table-td">
                     <div className="flex items-center justify-end gap-1">
+                      <Link to={`/clientes/${c.id}`}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Ver detalle">
+                        <Eye className="w-3.5 h-3.5" />
+                      </Link>
                       <button onClick={() => openEdit(c)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         title="Editar">

@@ -49,8 +49,13 @@ export default function ProjectsPage() {
   const openEdit   = (p: Project) => {
     setSelected(p);
     setForm({
-      clienteId: p.clienteId, nombre: p.nombre, descripcion: p.descripcion,
-      tipo: p.tipo, estado: p.estado, fechaInicio: p.fechaInicio, fechaFin: p.fechaFin,
+      clienteId:   p.clienteId,
+      nombre:      p.nombre,
+      descripcion: p.descripcion,
+      tipo:        p.tipo,
+      estado:      p.estado,
+      fechaInicio: p.fechaInicio ? String(p.fechaInicio).split('T')[0] : '',
+      fechaFin:    p.fechaFin    ? String(p.fechaFin).split('T')[0]    : undefined,
     });
     setError('');
     setModal('edit');

@@ -1,6 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { MessageSquare, Paperclip, Trash2, ExternalLink, Send, Eye } from 'lucide-react';
-import incidentsService, { CreateIncidenciaData } from '../../services/incidents.service';
+import incidentsService from '../../services/incidents.service';
 import projectsService from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
 import comentariosService from '../../services/comentarios.service';
@@ -12,13 +12,10 @@ import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/auth.store';
 import type {
-  Incidencia, Project, Cliente, Prioridad, EstadoIncidencia,
+  Incidencia, Project, Cliente,
   ComentarioIncidencia, ArchivoIncidencia,
 } from '../../types';
 
-const EMPTY: CreateIncidenciaData = {
-  titulo: '', descripcion: '', proyectoId: '', clienteId: '', reportadoPorId: '', prioridad: 'media', estado: 'abierta',
-};
 const EMPTY_ARC: CreateArchivoIncidenciaData = {
   incidenciaId: '', nombre: '', url: '', tipo: 'documento',
 };
@@ -70,11 +67,8 @@ export default function IncidentsPage() {
   const [clientes,  setClientes]  = useState<Cliente[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [filterProject, setFilter] = useState('');
-  const [modal, setModal]         = useState<'create' | 'edit' | 'detail' | null>(null);
+  const [modal, setModal]         = useState<'detail' | null>(null);
   const [selected, setSelected]   = useState<Incidencia | null>(null);
-  const [form, setForm]           = useState<CreateIncidenciaData>(EMPTY);
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState('');
 
   const [comentarios,    setComentarios]    = useState<ComentarioIncidencia[]>([]);
   const [archivos,       setArchivos]       = useState<ArchivoIncidencia[]>([]);
@@ -103,14 +97,6 @@ export default function IncidentsPage() {
 
   const handleFilter = (pid: string) => { setFilter(pid); load(pid || undefined); };
 
-  const openCreate = () => { setForm(EMPTY); setError(''); setModal('create'); };
-  const openEdit   = (inc: Incidencia) => {
-    setSelected(inc);
-    setForm({ titulo: inc.titulo, descripcion: inc.descripcion, proyectoId: inc.proyectoId,
-              prioridad: inc.prioridad, estado: inc.estado });
-    setError('');
-    setModal('edit');
-  };
   const openDetail = async (inc: Incidencia) => {
     setSelected(inc);
     setNewComment('');
@@ -127,25 +113,7 @@ export default function IncidentsPage() {
       setArchivos(a);
     } finally { setLoadingDetail(false); }
   };
-  const closeModal = () => { setModal(null); setSelected(null); setError(''); };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault(); setSaving(true); setError('');
-    try {
-      if (modal === 'create') {
-        const proyecto = projects.find((p) => p.id === form.proyectoId);
-        await incidentsService.create({
-          ...form,
-          clienteId:      proyecto?.clienteId ?? '',
-          reportadoPorId: user?.id ?? '',
-        });
-      } else if (selected) {
-        await incidentsService.update(selected.id, form);
-      }
-      closeModal(); load(filterProject || undefined);
-    } catch (err: any) { setError(err?.message ?? 'Error al guardar'); }
-    finally { setSaving(false); }
-  };
+  const closeModal = () => { setModal(null); setSelected(null); };
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta incidencia?')) return;
@@ -219,13 +187,10 @@ export default function IncidentsPage() {
           <h2 className="text-lg font-semibold text-slate-900">Incidencias</h2>
           <p className="text-sm text-slate-500">{incidents.length} registro{incidents.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex gap-3">
-          <select className="input w-52" value={filterProject} onChange={(e) => handleFilter(e.target.value)}>
-            <option value="">Todos los proyectos</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-          <button className="btn-primary" onClick={openCreate}>+ Nueva incidencia</button>
-        </div>
+        <select className="input w-52" value={filterProject} onChange={(e) => handleFilter(e.target.value)}>
+          <option value="">Todos los proyectos</option>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+        </select>
       </div>
 
       {/* Kanban */}
@@ -233,7 +198,6 @@ export default function IncidentsPage() {
         <EmptyState
           title="Sin incidencias"
           description="No hay incidencias registradas"
-          action={{ label: '+ Nueva incidencia', onClick: openCreate }}
         />
       ) : (
         <KanbanBoard<Incidencia>
@@ -267,22 +231,13 @@ export default function IncidentsPage() {
                     <Eye className="w-3.5 h-3.5" />
                   </button>
                   {isAdmin && (
-                    <>
-                      <button
-                        onClick={() => openEdit(inc)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        title="Editar"
-                      >
-                        <span className="text-[11px] font-medium px-1">Editar</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(inc.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleDelete(inc.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -290,62 +245,6 @@ export default function IncidentsPage() {
           )}
         />
       )}
-
-      {/* ── Modal crear / editar ── */}
-      <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal}
-        title={modal === 'create' ? 'Nueva incidencia' : 'Editar incidencia'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>}
-          <div>
-            <label className="label">Título *</label>
-            <input className="input" value={form.titulo}
-              onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
-          </div>
-          <div>
-            <label className="label">Descripción</label>
-            <textarea className="input resize-none" rows={3} value={form.descripcion ?? ''}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Proyecto *</label>
-            <select className="input" value={form.proyectoId}
-              onChange={(e) => setForm({ ...form, proyectoId: e.target.value })} required>
-              <option value="">Seleccionar proyecto…</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
-          </div>
-          <div className={isAdmin ? 'grid grid-cols-2 gap-4' : ''}>
-            <div>
-              <label className="label">Prioridad</label>
-              <select className="input" value={form.prioridad}
-                onChange={(e) => setForm({ ...form, prioridad: e.target.value as Prioridad })}>
-                <option value="baja">Baja</option>
-                <option value="media">Media</option>
-                <option value="alta">Alta</option>
-                <option value="critica">Crítica</option>
-              </select>
-            </div>
-            {isAdmin && (
-              <div>
-                <label className="label">Estado</label>
-                <select className="input" value={form.estado}
-                  onChange={(e) => setForm({ ...form, estado: e.target.value as EstadoIncidencia })}>
-                  <option value="abierta">Abierta</option>
-                  <option value="en_proceso">En proceso</option>
-                  <option value="resuelta">Resuelta</option>
-                  <option value="cerrada">Cerrada</option>
-                </select>
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-        </form>
-      </Modal>
 
       {/* ── Modal detalle: comentarios + archivos ── */}
       <Modal open={modal === 'detail'} onClose={closeModal} title={selected?.titulo ?? ''} size="lg">
