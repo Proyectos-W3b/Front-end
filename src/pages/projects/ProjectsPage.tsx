@@ -106,6 +106,7 @@ export default function ProjectsPage() {
       key: 'acciones', header: 'Acciones', className: 'text-right',
       render: (p) => (
         <div className="flex justify-end gap-1">
+          <Link to={`/projects/${p.id}`} className="btn btn-primary btn-sm">Gestionar</Link>
           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}>Editar</button>
           <button className="btn btn-danger btn-sm"    onClick={() => handleDelete(p.id)}>Eliminar</button>
         </div>
