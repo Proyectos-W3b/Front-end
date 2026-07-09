@@ -1,20 +1,25 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FileText, RefreshCw, Paperclip, Trash2, ExternalLink, Plus } from 'lucide-react';
+import { FileText, RefreshCw, Paperclip, Trash2, ExternalLink, Plus, Eye, MessageSquare, Send } from 'lucide-react';
 import projectsService from '../../services/projects.service';
 import incidentsService, { CreateIncidenciaData } from '../../services/incidents.service';
 import actualizacionesService, { CreateActualizacionData, UpdateActualizacionData } from '../../services/actualizaciones.service';
 import archivosProyectoService, { CreateArchivoProyectoData } from '../../services/archivos-proyecto.service';
+import comentariosService from '../../services/comentarios.service';
+import archivosIncidenciaService, { CreateArchivoIncidenciaData } from '../../services/archivos-incidencia.service';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import KanbanBoard, { type KanbanColumn } from '../../components/ui/KanbanBoard';
 import { FullPageSpinner } from '../../components/ui/Spinner';
+import { useAuthStore } from '../../store/auth.store';
 import type {
   Project, Incidencia, Prioridad, EstadoIncidencia,
   ActualizacionProyecto, ArchivoProyecto,
+  ComentarioIncidencia, ArchivoIncidencia,
 } from '../../types';
 
 type Tab = 'incidencias' | 'actualizaciones' | 'archivos';
+type DetailTab = 'comentarios' | 'archivos';
 
 const EMPTY_INC: CreateIncidenciaData = {
   titulo: '', descripcion: '', proyectoId: '', clienteId: '', reportadoPorId: '', prioridad: 'media', estado: 'abierta',
@@ -24,6 +29,9 @@ const EMPTY_ACT: CreateActualizacionData = {
 };
 const EMPTY_ARC: CreateArchivoProyectoData = {
   proyectoId: '', nombre: '', url: '', tipo: 'documento',
+};
+const EMPTY_INC_ARC: CreateArchivoIncidenciaData = {
+  incidenciaId: '', nombre: '', url: '', tipo: 'documento',
 };
 
 const INCIDENT_COLUMNS: KanbanColumn[] = [
@@ -35,6 +43,8 @@ const INCIDENT_COLUMNS: KanbanColumn[] = [
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const user    = useAuthStore((s) => s.user);
+  const isAdmin = user?.rol === 'admin';
   const [project,       setProject]       = useState<Project | null>(null);
   const [incidents,     setIncidents]     = useState<Incidencia[]>([]);
   const [actualizaciones, setActualizaciones] = useState<ActualizacionProyecto[]>([]);
@@ -43,7 +53,7 @@ export default function ProjectDetailPage() {
   const [tab,           setTab]           = useState<Tab>('incidencias');
   const [tabLoaded,     setTabLoaded]     = useState<Set<Tab>>(new Set(['incidencias']));
 
-  const [modal,       setModal]       = useState<'editProject' | 'createInc' | 'editInc' | 'createAct' | 'editAct' | 'createArc' | null>(null);
+  const [modal,       setModal]       = useState<'editProject' | 'createInc' | 'editInc' | 'incDetail' | 'createAct' | 'editAct' | 'createArc' | null>(null);
   const [selectedInc, setSelectedInc] = useState<Incidencia | null>(null);
   const [selectedAct, setSelectedAct] = useState<ActualizacionProyecto | null>(null);
   const [projForm, setProjForm] = useState({ nombre: '', descripcion: '', estado: 'activo' });
@@ -52,6 +62,16 @@ export default function ProjectDetailPage() {
   const [arcForm,  setArcForm]  = useState<CreateArchivoProyectoData>(EMPTY_ARC);
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
+
+  /* ── Incident detail (comentarios / archivos) ── */
+  const [comentarios,    setComentarios]    = useState<ComentarioIncidencia[]>([]);
+  const [incArchivos,    setIncArchivos]    = useState<ArchivoIncidencia[]>([]);
+  const [loadingDetail,  setLoadingDetail]  = useState(false);
+  const [detailTab,      setDetailTab]      = useState<DetailTab>('comentarios');
+  const [newComment,     setNewComment]     = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
+  const [incArcForm,     setIncArcForm]     = useState<CreateArchivoIncidenciaData>(EMPTY_INC_ARC);
+  const [savingIncArc,   setSavingIncArc]   = useState(false);
 
   const loadProject = async () => {
     if (!id) return;
@@ -112,6 +132,54 @@ export default function ProjectDetailPage() {
   const deleteInc = async (incId: string) => {
     if (!confirm('¿Eliminar esta incidencia?')) return;
     await incidentsService.remove(incId); loadProject();
+  };
+
+  /* ── Incident detail: comentarios / archivos ── */
+  const openIncDetail = async (inc: Incidencia) => {
+    setSelectedInc(inc);
+    setNewComment('');
+    setIncArcForm({ ...EMPTY_INC_ARC, incidenciaId: inc.id });
+    setDetailTab('comentarios');
+    setModal('incDetail');
+    setLoadingDetail(true);
+    try {
+      const [c, a] = await Promise.all([
+        comentariosService.getByIncidencia(inc.id),
+        archivosIncidenciaService.getByIncidencia(inc.id),
+      ]);
+      setComentarios(c);
+      setIncArchivos(a);
+    } finally { setLoadingDetail(false); }
+  };
+  const sendComment = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedInc || !newComment.trim()) return;
+    setSendingComment(true);
+    try {
+      await comentariosService.create({ incidenciaId: selectedInc.id, contenido: newComment.trim() });
+      setNewComment('');
+      setComentarios(await comentariosService.getByIncidencia(selectedInc.id));
+    } finally { setSendingComment(false); }
+  };
+  const deleteComment = async (commentId: string) => {
+    if (!selectedInc) return;
+    await comentariosService.remove(commentId);
+    setComentarios(await comentariosService.getByIncidencia(selectedInc.id));
+  };
+  const saveIncArc = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedInc) return;
+    setSavingIncArc(true);
+    try {
+      await archivosIncidenciaService.create({ ...incArcForm, incidenciaId: selectedInc.id });
+      setIncArcForm({ ...EMPTY_INC_ARC, incidenciaId: selectedInc.id });
+      setIncArchivos(await archivosIncidenciaService.getByIncidencia(selectedInc.id));
+    } finally { setSavingIncArc(false); }
+  };
+  const deleteIncArc = async (arcId: string) => {
+    if (!selectedInc) return;
+    await archivosIncidenciaService.remove(arcId);
+    setIncArchivos(await archivosIncidenciaService.getByIncidencia(selectedInc.id));
   };
 
   /* ── Actualizacion handlers ── */
@@ -198,9 +266,11 @@ export default function ProjectDetailPage() {
               {' · '}Tipo: {project.tipo}
             </p>
           </div>
-          <button className="btn-secondary btn-sm" onClick={() => { setError(''); setModal('editProject'); }}>
-            Editar proyecto
-          </button>
+          {isAdmin && (
+            <button className="btn-secondary btn-sm" onClick={() => { setError(''); setModal('editProject'); }}>
+              Editar proyecto
+            </button>
+          )}
         </div>
       </div>
 
@@ -256,14 +326,22 @@ export default function ProjectDetailPage() {
                     </span>
                   </div>
                   <div className="flex gap-1 pt-2.5 border-t border-slate-50">
-                    <button onClick={() => openEditInc(inc)}
-                      className="text-[11px] font-medium text-slate-500 hover:text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
-                      Editar
+                    <button onClick={() => openIncDetail(inc)}
+                      className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                      <Eye className="w-3 h-3" /> Ver detalles
                     </button>
-                    <button onClick={() => deleteInc(inc.id)}
-                      className="text-[11px] font-medium text-slate-500 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
-                      Eliminar
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => openEditInc(inc)}
+                          className="text-[11px] font-medium text-slate-500 hover:text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                          Editar
+                        </button>
+                        <button onClick={() => deleteInc(inc.id)}
+                          className="text-[11px] font-medium text-slate-500 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
+                          Eliminar
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -277,9 +355,11 @@ export default function ProjectDetailPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-900">Actualizaciones del proyecto</h3>
-            <button className="btn-primary btn-sm flex items-center gap-1.5" onClick={openCreateAct}>
-              <Plus className="w-3.5 h-3.5" /> Nueva actualización
-            </button>
+            {isAdmin && (
+              <button className="btn-primary btn-sm flex items-center gap-1.5" onClick={openCreateAct}>
+                <Plus className="w-3.5 h-3.5" /> Nueva actualización
+              </button>
+            )}
           </div>
           {actualizaciones.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 py-12 text-center">
@@ -298,16 +378,18 @@ export default function ProjectDetailPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl font-bold tabular-nums text-blue-600">{a.porcentajeAvance}%</span>
-                      <div className="flex gap-1">
-                        <button onClick={() => openEditAct(a)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => deleteAct(a.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex gap-1">
+                          <button onClick={() => openEditAct(a)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => deleteAct(a.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {a.descripcion && <p className="text-xs text-slate-500 mb-3">{a.descripcion}</p>}
@@ -329,9 +411,11 @@ export default function ProjectDetailPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-900">Archivos del proyecto</h3>
-            <button className="btn-primary btn-sm flex items-center gap-1.5" onClick={openCreateArc}>
-              <Plus className="w-3.5 h-3.5" /> Agregar archivo
-            </button>
+            {isAdmin && (
+              <button className="btn-primary btn-sm flex items-center gap-1.5" onClick={openCreateArc}>
+                <Plus className="w-3.5 h-3.5" /> Agregar archivo
+              </button>
+            )}
           </div>
           {archivos.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100 py-12 text-center">
@@ -368,11 +452,13 @@ export default function ProjectDetailPage() {
                             title="Abrir enlace">
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
-                          <button onClick={() => deleteArc(arc.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Eliminar">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {isAdmin && (
+                            <button onClick={() => deleteArc(arc.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Eliminar">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -456,6 +542,137 @@ export default function ProjectDetailPage() {
             <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── Modal: Detalle incidencia (comentarios / archivos) ── */}
+      <Modal open={modal === 'incDetail'} onClose={closeModal} title={selectedInc?.titulo ?? ''} size="lg">
+        {selectedInc && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2 pb-3 border-b border-slate-100">
+              <Badge value={selectedInc.estado} />
+              <Badge value={selectedInc.prioridad} />
+            </div>
+            {selectedInc.descripcion && (
+              <p className="text-sm text-slate-600">{selectedInc.descripcion}</p>
+            )}
+            <div className="flex gap-1 border-b border-slate-100">
+              {(['comentarios', 'archivos'] as const).map((t) => (
+                <button key={t} onClick={() => setDetailTab(t)}
+                  className={[
+                    'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                    detailTab === t
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-800',
+                  ].join(' ')}
+                >
+                  {t === 'comentarios'
+                    ? <><MessageSquare className="w-3.5 h-3.5" /> Comentarios {comentarios.length > 0 && `(${comentarios.length})`}</>
+                    : <><Paperclip className="w-3.5 h-3.5" /> Archivos {incArchivos.length > 0 && `(${incArchivos.length})`}</>
+                  }
+                </button>
+              ))}
+            </div>
+
+            {loadingDetail ? (
+              <p className="text-sm text-slate-400 text-center py-6">Cargando…</p>
+            ) : (
+              <>
+                {detailTab === 'comentarios' && (
+                  <div className="space-y-3">
+                    {comentarios.length === 0
+                      ? <p className="text-sm text-slate-400 text-center py-4">Sin comentarios aún</p>
+                      : (
+                        <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                          {comentarios.map((c) => (
+                            <div key={c.id} className="bg-slate-50 rounded-lg px-3 py-2.5 flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-slate-800 break-words">{c.contenido}</p>
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                  {new Date(c.fechaCreacion).toLocaleString('es')}
+                                </p>
+                              </div>
+                              {isAdmin && (
+                                <button onClick={() => deleteComment(c.id)}
+                                  className="p-1 rounded text-slate-300 hover:text-red-500 transition-colors shrink-0">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    <form onSubmit={sendComment} className="flex gap-2 pt-1">
+                      <input className="input flex-1 text-sm" placeholder="Escribe un comentario…"
+                        value={newComment} onChange={(e) => setNewComment(e.target.value)} />
+                      <button type="submit" disabled={sendingComment || !newComment.trim()}
+                        className="btn-primary px-3 py-2 flex items-center gap-1.5 text-sm">
+                        <Send className="w-3.5 h-3.5" />
+                        {sendingComment ? 'Enviando…' : 'Enviar'}
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {detailTab === 'archivos' && (
+                  <div className="space-y-3">
+                    {incArchivos.length === 0
+                      ? <p className="text-sm text-slate-400 text-center py-4">Sin archivos adjuntos</p>
+                      : (
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {incArchivos.map((a) => (
+                            <div key={a.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="text-sm text-slate-800 truncate">{a.nombre}</span>
+                                <span className="text-[10px] text-slate-400 shrink-0">{a.tipo}</span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <a href={a.url} target="_blank" rel="noopener noreferrer"
+                                  className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors">
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                                {isAdmin && (
+                                  <button onClick={() => deleteIncArc(a.id)}
+                                    className="p-1 rounded text-slate-300 hover:text-red-500 transition-colors">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    <form onSubmit={saveIncArc} className="space-y-2 pt-1 border-t border-slate-100">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Adjuntar archivo</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input className="input text-sm" placeholder="Nombre del archivo"
+                          value={incArcForm.nombre} onChange={(e) => setIncArcForm({ ...incArcForm, nombre: e.target.value })} required />
+                        <select className="input text-sm" value={incArcForm.tipo}
+                          onChange={(e) => setIncArcForm({ ...incArcForm, tipo: e.target.value })}>
+                          <option value="documento">Documento</option>
+                          <option value="imagen">Imagen</option>
+                          <option value="video">Video</option>
+                          <option value="hoja_calculo">Hoja de cálculo</option>
+                          <option value="otro">Otro</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <input className="input flex-1 text-sm" placeholder="URL del archivo (https://…)"
+                          value={incArcForm.url} onChange={(e) => setIncArcForm({ ...incArcForm, url: e.target.value })} required />
+                        <button type="submit" disabled={savingIncArc}
+                          className="btn-primary px-3 py-2 text-sm shrink-0">
+                          {savingIncArc ? 'Guardando…' : 'Adjuntar'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </Modal>
 
       {/* ── Modal: Actualización ── */}
