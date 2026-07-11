@@ -10,6 +10,7 @@ import archivosIncidenciaService, { CreateArchivoIncidenciaData } from '../../se
 import fasesService from '../../services/fases.service';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
+import DataTable from '../../components/ui/DataTable';
 import KanbanBoard, { type KanbanColumn } from '../../components/ui/KanbanBoard';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import ProgressBar from '../../components/ui/ProgressBar';
@@ -577,56 +578,45 @@ export default function ProjectDetailPage() {
               </button>
             )}
           </div>
-          {archivos.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 py-12 text-center">
-              <p className="text-sm text-slate-400">No hay archivos adjuntos</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="table-th">Nombre</th>
-                    <th className="table-th">Tipo</th>
-                    <th className="table-th">Fecha</th>
-                    <th className="table-th text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {archivos.map((arc) => (
-                    <tr key={arc.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="table-td">
-                        <div className="flex items-center gap-2.5">
-                          <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800">{arc.nombre}</span>
-                        </div>
-                      </td>
-                      <td className="table-td text-slate-500 text-xs">{arc.tipo}</td>
-                      <td className="table-td text-slate-400 text-xs">
-                        {new Date(arc.fecha).toLocaleDateString('es')}
-                      </td>
-                      <td className="table-td">
-                        <div className="flex items-center justify-end gap-1">
-                          <a href={arc.url} target="_blank" rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                            title="Abrir enlace">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                          {isAdmin && (
-                            <button onClick={() => deleteArc(arc.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title="Eliminar">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable<ArchivoProyecto>
+            columns={[
+              {
+                key: 'nombre', header: 'Nombre',
+                render: (arc) => (
+                  <div className="flex items-center gap-2.5">
+                    <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-medium text-slate-800">{arc.nombre}</span>
+                  </div>
+                ),
+              },
+              { key: 'tipo', header: 'Tipo', render: (arc) => <span className="text-slate-500 text-xs">{arc.tipo}</span> },
+              {
+                key: 'fecha', header: 'Fecha',
+                render: (arc) => <span className="text-slate-400 text-xs">{new Date(arc.fecha).toLocaleDateString('es')}</span>,
+              },
+              {
+                key: 'acciones', header: 'Acciones', className: 'text-right',
+                render: (arc) => (
+                  <div className="flex items-center justify-end gap-1">
+                    <a href={arc.url} target="_blank" rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      title="Abrir enlace">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    {isAdmin && (
+                      <button onClick={() => deleteArc(arc.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Eliminar">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+            data={archivos}
+            emptyText="No hay archivos adjuntos"
+          />
         </div>
       )}
 

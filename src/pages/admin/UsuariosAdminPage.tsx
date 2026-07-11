@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { usuariosApi, rolesApi } from '../../services/api.service';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
+import DataTable from '../../components/ui/DataTable';
 import type { User } from '../../types';
 
 interface RolOption { idRol: string; nombre: string; }
@@ -99,42 +100,34 @@ export default function UsuariosAdminPage() {
       {loading ? (
         <div className="card py-10 text-center text-gray-400 text-sm">Cargando usuarios...</div>
       ) : (
-        <div className="card p-0 overflow-hidden overflow-x-auto">
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="table-th">Usuario</th>
-                <th className="table-th">Correo</th>
-                <th className="table-th">Rol</th>
-                <th className="table-th text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={4} className="py-10 text-center text-gray-400 text-sm">Sin resultados</td></tr>
-              ) : filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50/50">
-                  <td className="table-td">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {u.nombre[0].toUpperCase()}
-                      </div>
-                      <span className="font-medium text-sm">{u.nombre}</span>
-                    </div>
-                  </td>
-                  <td className="table-td text-sm text-gray-500">{u.correo}</td>
-                  <td className="table-td"><Badge value={u.rol} /></td>
-                  <td className="table-td text-right">
-                    <div className="flex justify-end gap-1.5">
-                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Editar</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => deleteUser(u.id)}>Eliminar</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<User>
+          columns={[
+            {
+              key: 'usuario', header: 'Usuario',
+              render: (u) => (
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {u.nombre[0].toUpperCase()}
+                  </div>
+                  <span className="font-medium text-sm">{u.nombre}</span>
+                </div>
+              ),
+            },
+            { key: 'correo', header: 'Correo', render: (u) => <span className="text-sm text-gray-500">{u.correo}</span> },
+            { key: 'rol', header: 'Rol', render: (u) => <Badge value={u.rol} /> },
+            {
+              key: 'acciones', header: 'Acciones', className: 'text-right',
+              render: (u) => (
+                <div className="flex justify-end gap-1.5">
+                  <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Editar</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => deleteUser(u.id)}>Eliminar</button>
+                </div>
+              ),
+            },
+          ]}
+          data={filtered}
+          emptyText="Sin resultados"
+        />
       )}
 
       <Modal open={modal !== null} onClose={closeModal}

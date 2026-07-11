@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, FolderOpen, Calendar, ExternalLink } from 'lucide-react';
 import { Effect } from '../../components/animate-ui/primitives/effects/effect';
 import Badge from '../../components/ui/Badge';
+import DataTable from '../../components/ui/DataTable';
 import { clientesApi, proyectsApi, usuariosApi } from '../../services/api.service';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import { toProjectPath } from '../../lib/slug';
@@ -150,53 +151,39 @@ export default function ClienteDetailPage() {
       <Effect slide={{ direction: 'up', offset: 16 }} fade delay={180}
         transition={{ type: 'spring', stiffness: 200, damping: 22 }}
       >
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <FolderOpen className="w-4 h-4 text-blue-500" />
-              Proyectos asociados
-              <span className="ml-1 text-xs font-normal text-slate-400">({projects.length})</span>
-            </h3>
-          </div>
+        <div className="space-y-3">
+          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-blue-500" />
+            Proyectos asociados
+            <span className="ml-1 text-xs font-normal text-slate-400">({projects.length})</span>
+          </h3>
 
-          {projects.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">Sin proyectos asociados</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-50">
-                  <th className="table-th">Proyecto</th>
-                  <th className="table-th">Estado</th>
-                  <th className="table-th">Inicio</th>
-                  <th className="table-th text-right">Detalle</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {projects.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="table-td font-medium text-slate-800">{p.nombre}</td>
-                    <td className="table-td"><Badge value={p.estado} /></td>
-                    <td className="table-td text-slate-500">
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-300" />
-                        {p.fechaInicio
-                          ? new Date(p.fechaInicio).toLocaleDateString('es-ES')
-                          : '—'}
-                      </span>
-                    </td>
-                    <td className="table-td text-right">
-                      <Link
-                        to={toProjectPath(p)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        Ver <ExternalLink className="w-3 h-3" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <DataTable<Project>
+            columns={[
+              { key: 'nombre', header: 'Proyecto', render: (p) => <span className="font-medium text-slate-800">{p.nombre}</span> },
+              { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
+              {
+                key: 'inicio', header: 'Inicio',
+                render: (p) => (
+                  <span className="inline-flex items-center gap-1 text-slate-500">
+                    <Calendar className="w-3.5 h-3.5 text-slate-300" />
+                    {p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es-ES') : '—'}
+                  </span>
+                ),
+              },
+              {
+                key: 'detalle', header: 'Detalle', className: 'text-right',
+                render: (p) => (
+                  <Link to={toProjectPath(p)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800">
+                    Ver <ExternalLink className="w-3 h-3" />
+                  </Link>
+                ),
+              },
+            ]}
+            data={projects}
+            emptyText="Sin proyectos asociados"
+          />
         </div>
       </Effect>
 
