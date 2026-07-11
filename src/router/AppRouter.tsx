@@ -23,7 +23,6 @@ import AdminLoginPage     from '../pages/admin/AdminLoginPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import UsuariosAdminPage  from '../pages/admin/UsuariosAdminPage';
 import RolesPage          from '../pages/admin/RolesPage';
-import AuditoriaPage      from '../pages/admin/AuditoriaPage';
 import ConfiguracionPage  from '../pages/admin/ConfiguracionPage';
 
 export default function AppRouter() {
@@ -42,7 +41,7 @@ export default function AppRouter() {
             <Route path="/"                   element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard"          element={<DashboardPage />} />
             <Route path="/projects"           element={<ProjectsPage />} />
-            <Route path="/projects/:id"       element={<ProjectDetailPage />} />
+            <Route path="/projects/:slug"     element={<ProjectDetailPage />} />
             <Route path="/incidents"  element={<IncidentsPage />} />
             <Route path="/clientes"        element={<ClientesPage />} />
             <Route path="/clientes/chat"   element={<ClientesChatPage />} />
@@ -57,7 +56,6 @@ export default function AppRouter() {
             <Route path="/admin"                 element={<AdminDashboardPage />} />
             <Route path="/admin/usuarios"        element={<UsuariosAdminPage />} />
             <Route path="/admin/roles"           element={<RolesPage />} />
-            <Route path="/admin/auditoria"       element={<AuditoriaPage />} />
             <Route path="/admin/configuracion"   element={<ConfiguracionPage />} />
           </Route>
         </Route>

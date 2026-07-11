@@ -15,6 +15,7 @@ import type {
   EstadoIncidencia,
   ActualizacionProyecto,
   ArchivoProyecto,
+  Fase,
   ArchivoIncidencia,
   ComentarioIncidencia,
 } from '../types';
@@ -257,6 +258,32 @@ export const archivosProyectoApi = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/archivos/${id}`);
+  },
+};
+
+// ── Fases de proyecto ─────────────────────────────────────────────────────────
+export const fasesApi = {
+  async getByProyecto(proyectoId: string): Promise<Fase[]> {
+    const { data } = await api.get(`/fases/proyecto/${proyectoId}`);
+    return Array.isArray(data) ? data : data.data ?? [];
+  },
+
+  async create(payload: { proyectoId: string; nombre: string; orden?: number }): Promise<Fase> {
+    const { data } = await api.post('/fases', payload);
+    return data;
+  },
+
+  async update(id: string, payload: Partial<{ nombre: string; orden: number; estado: string }>): Promise<Fase> {
+    const { data } = await api.patch(`/fases/${id}`, payload);
+    return data;
+  },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/fases/${id}`);
+  },
+
+  async reorder(items: { id: string; orden: number }[]): Promise<void> {
+    await api.patch('/fases/reorder', { items });
   },
 };
 

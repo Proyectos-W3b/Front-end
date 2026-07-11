@@ -7,6 +7,7 @@ import incidentsService from '../../services/incidents.service';
 import clientesService from '../../services/clientes.service';
 import Badge from '../../components/ui/Badge';
 import { FullPageSpinner } from '../../components/ui/Spinner';
+import { toProjectPath } from '../../lib/slug';
 import type { Project, Incidencia, ClienteStats } from '../../types';
 
 export default function DashboardPage() {
@@ -179,7 +180,7 @@ export default function DashboardPage() {
                   return (
                     <div key={p.id}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <Link to={`/projects/${p.id}`}
+                        <Link to={toProjectPath(p)}
                           className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors truncate max-w-[60%]">
                           {p.nombre}
                         </Link>
@@ -269,7 +270,7 @@ export default function DashboardPage() {
                   {recentProjects.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="table-td">
-                        <Link to={`/projects/${p.id}`} className="font-medium text-slate-800 hover:text-blue-600 transition-colors">
+                        <Link to={toProjectPath(p)} className="font-medium text-slate-800 hover:text-blue-600 transition-colors">
                           {p.nombre}
                         </Link>
                       </td>
@@ -496,7 +497,7 @@ export default function DashboardPage() {
                 {recentProjects.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="table-td">
-                      <Link to={`/projects/${p.id}`} className="font-medium text-slate-800 hover:text-blue-600 transition-colors">
+                      <Link to={toProjectPath(p)} className="font-medium text-slate-800 hover:text-blue-600 transition-colors">
                         {p.nombre}
                       </Link>
                     </td>

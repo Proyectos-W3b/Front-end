@@ -1,14 +1,18 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Building2 } from 'lucide-react';
+import { ExternalLink, Building2, Settings2, Pencil, Trash2, Eye } from 'lucide-react';
 import projectsService, { CreateProjectData } from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
+import actualizacionesService from '../../services/actualizaciones.service';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
+import ProgressBar from '../../components/ui/ProgressBar';
+import DatePicker from '../../components/ui/DatePicker';
 import { useAuthStore } from '../../store/auth.store';
+import { toProjectPath } from '../../lib/slug';
 import type { Project, Cliente } from '../../types';
 
 const EMPTY_FORM: CreateProjectData = {
@@ -21,6 +25,7 @@ export default function ProjectsPage() {
   const isAdmin = user?.rol === 'admin';
   const [projects,  setProjects]  = useState<Project[]>([]);
   const [clientes,  setClientes]  = useState<Cliente[]>([]);
+  const [avanceMap, setAvanceMap] = useState<Record<string, number>>({});
   const [loading,   setLoading]   = useState(true);
   const [modal,     setModal]     = useState<'create' | 'edit' | null>(null);
   const [selected,  setSelected]  = useState<Project | null>(null);
@@ -31,12 +36,24 @@ export default function ProjectsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [p, c] = await Promise.all([
+      const [p, c, actualizaciones] = await Promise.all([
         projectsService.getAll(),
         isAdmin ? clientesService.getAll() : Promise.resolve([]),
+        actualizacionesService.getAll(),
       ]);
       setProjects(p);
       setClientes(c);
+
+      const latestByProyecto: Record<string, { fecha: string; porcentajeAvance: number }> = {};
+      for (const a of actualizaciones) {
+        const current = latestByProyecto[a.proyectoId];
+        if (!current || new Date(a.fecha) > new Date(current.fecha)) {
+          latestByProyecto[a.proyectoId] = { fecha: a.fecha, porcentajeAvance: a.porcentajeAvance };
+        }
+      }
+      setAvanceMap(
+        Object.fromEntries(Object.entries(latestByProyecto).map(([pid, v]) => [pid, v.porcentajeAvance])),
+      );
     } finally { setLoading(false); }
   };
 
@@ -82,7 +99,7 @@ export default function ProjectsPage() {
     {
       key: 'nombre', header: 'Nombre',
       render: (p) => (
-        <Link to={`/projects/${p.id}`}
+        <Link to={toProjectPath(p)}
           className="font-semibold text-slate-800 hover:text-blue-600 transition-colors inline-flex items-center gap-1">
           {p.nombre} <ExternalLink className="w-3 h-3 opacity-40" />
         </Link>
@@ -99,16 +116,34 @@ export default function ProjectsPage() {
     { key: 'tipo',   header: 'Tipo',   render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span> },
     { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
     {
+      key: 'avance', header: 'Avance', className: 'w-32',
+      render: (p) => avanceMap[p.id] !== undefined
+        ? <ProgressBar value={avanceMap[p.id]} showLabel />
+        : <span className="text-slate-300 text-xs">—</span>,
+    },
+    {
       key: 'fechaInicio', header: 'Inicio',
       render: (p) => <span className="text-slate-400 text-xs">{p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es') : '—'}</span>,
     },
     {
       key: 'acciones', header: 'Acciones', className: 'text-right',
       render: (p) => (
-        <div className="flex justify-end gap-1">
-          <Link to={`/projects/${p.id}`} className="btn btn-primary btn-sm">Gestionar</Link>
-          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}>Editar</button>
-          <button className="btn btn-danger btn-sm"    onClick={() => handleDelete(p.id)}>Eliminar</button>
+        <div className="flex items-center justify-end gap-1">
+          <Link to={toProjectPath(p)}
+            className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+            title="Gestionar proyecto">
+            <Settings2 className="w-3.5 h-3.5" />
+          </Link>
+          <button onClick={() => openEdit(p)}
+            className="p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+            title="Editar">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => handleDelete(p.id)}
+            className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+            title="Eliminar">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
     },
@@ -118,7 +153,7 @@ export default function ProjectsPage() {
     {
       key: 'nombre', header: 'Proyecto',
       render: (p) => (
-        <Link to={`/projects/${p.id}`}
+        <Link to={toProjectPath(p)}
           className="font-semibold text-slate-800 hover:text-blue-600 transition-colors inline-flex items-center gap-1">
           {p.nombre} <ExternalLink className="w-3 h-3 opacity-40" />
         </Link>
@@ -127,13 +162,23 @@ export default function ProjectsPage() {
     { key: 'tipo',   header: 'Tipo',   render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span> },
     { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
     {
+      key: 'avance', header: 'Avance', className: 'w-32',
+      render: (p) => avanceMap[p.id] !== undefined
+        ? <ProgressBar value={avanceMap[p.id]} showLabel />
+        : <span className="text-slate-300 text-xs">—</span>,
+    },
+    {
       key: 'fechaInicio', header: 'Inicio',
       render: (p) => <span className="text-slate-400 text-xs">{p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString('es') : '—'}</span>,
     },
     {
       key: 'acciones', header: '', className: 'text-right',
       render: (p) => (
-        <Link to={`/projects/${p.id}`} className="btn btn-secondary btn-sm">Ver detalles</Link>
+        <Link to={toProjectPath(p)}
+          className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors inline-flex"
+          title="Ver detalles">
+          <Eye className="w-3.5 h-3.5" />
+        </Link>
       ),
     },
   ];
@@ -162,66 +207,82 @@ export default function ProjectsPage() {
         <DataTable columns={isAdmin ? COLUMNS_ADMIN : COLUMNS_CLIENTE} data={projects} emptyText="Sin proyectos registrados" />
       )}
 
-      <Modal open={modal !== null} onClose={closeModal}
+      <Modal open={modal !== null} onClose={closeModal} size="lg"
         title={modal === 'create' ? 'Nuevo proyecto' : 'Editar proyecto'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>
           )}
-          <div>
-            <label className="label">Cliente *</label>
-            <select className="input" value={form.clienteId}
-              onChange={(e) => setForm({ ...form, clienteId: e.target.value })} required>
-              <option value="">Seleccionar cliente</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.empresa}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Nombre *</label>
-            <input className="input" value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
-          </div>
-          <div>
-            <label className="label">Descripción *</label>
-            <textarea className="input resize-none" rows={3} value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          {/* ── Información general ── */}
+          <div className="space-y-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Información general</p>
             <div>
-              <label className="label">Tipo *</label>
-              <select className="input" value={form.tipo}
-                onChange={(e) => setForm({ ...form, tipo: e.target.value })} required>
-                <option value="software">Software</option>
-                <option value="hardware">Hardware</option>
-                <option value="consultoria">Consultoría</option>
-                <option value="soporte">Soporte</option>
-                <option value="infraestructura">Infraestructura</option>
-                <option value="otro">Otro</option>
+              <label className="label">Cliente *</label>
+              <select className="input" value={form.clienteId}
+                onChange={(e) => setForm({ ...form, clienteId: e.target.value })} required>
+                <option value="">Seleccionar cliente</option>
+                {clientes.map((c) => <option key={c.id} value={c.id}>{c.empresa}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">Estado</label>
-              <select className="input" value={form.estado}
-                onChange={(e) => setForm({ ...form, estado: e.target.value })}>
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
-                <option value="completado">Completado</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Fecha inicio *</label>
-              <input type="date" className="input" value={form.fechaInicio}
-                onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })} required />
+              <label className="label">Nombre *</label>
+              <input className="input" value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
             </div>
             <div>
-              <label className="label">Fecha fin</label>
-              <input type="date" className="input" value={form.fechaFin ?? ''}
-                onChange={(e) => setForm({ ...form, fechaFin: e.target.value || undefined })} />
+              <label className="label">Descripción *</label>
+              <textarea className="input resize-none" rows={3} value={form.descripcion}
+                onChange={(e) => setForm({ ...form, descripcion: e.target.value })} required />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+
+          {/* ── Clasificación ── */}
+          <div className="space-y-4 border-t border-slate-100 pt-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clasificación</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Tipo *</label>
+                <select className="input" value={form.tipo}
+                  onChange={(e) => setForm({ ...form, tipo: e.target.value })} required>
+                  <option value="software">Software</option>
+                  <option value="hardware">Hardware</option>
+                  <option value="consultoria">Consultoría</option>
+                  <option value="soporte">Soporte</option>
+                  <option value="infraestructura">Infraestructura</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Estado</label>
+                <select className="input" value={form.estado}
+                  onChange={(e) => setForm({ ...form, estado: e.target.value })}>
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                  <option value="completado">Completado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Cronograma ── */}
+          <div className="space-y-4 border-t border-slate-100 pt-5">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cronograma</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Fecha inicio *</label>
+                <DatePicker value={form.fechaInicio}
+                  onChange={(v) => setForm({ ...form, fechaInicio: v })} required />
+              </div>
+              <div>
+                <label className="label">Fecha fin</label>
+                <DatePicker value={form.fechaFin} min={form.fechaInicio}
+                  onChange={(v) => setForm({ ...form, fechaFin: v || undefined })} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
             <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar'}

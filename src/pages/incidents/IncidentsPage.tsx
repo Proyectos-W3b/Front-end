@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { MessageSquare, Paperclip, Trash2, ExternalLink, Send, Eye } from 'lucide-react';
+import { MessageSquare, Paperclip, Trash2, ExternalLink, Send, Eye, Building2 } from 'lucide-react';
 import incidentsService from '../../services/incidents.service';
 import projectsService from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
@@ -79,6 +79,9 @@ export default function IncidentsPage() {
   const [savingArc,      setSavingArc]      = useState(false);
   const [detailTab,      setDetailTab]      = useState<'comentarios' | 'archivos'>('comentarios');
 
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [archivoCounts, setArchivoCounts] = useState<Record<string, number>>({});
+
   const load = async (proyectoId?: string) => {
     setLoading(true);
     try {
@@ -90,7 +93,26 @@ export default function IncidentsPage() {
       setIncidents(i);
       setProjects(p);
       setClientes(c);
+      loadCounts(i);
     } finally { setLoading(false); }
+  };
+
+  const loadCounts = async (list: Incidencia[]) => {
+    try {
+      const results = await Promise.all(
+        list.map(async (inc) => {
+          const [c, a] = await Promise.all([
+            comentariosService.getByIncidencia(inc.id),
+            archivosIncidenciaService.getByIncidencia(inc.id),
+          ]);
+          return { id: inc.id, comentarios: c.length, archivos: a.length };
+        }),
+      );
+      setCommentCounts(Object.fromEntries(results.map((r) => [r.id, r.comentarios])));
+      setArchivoCounts(Object.fromEntries(results.map((r) => [r.id, r.archivos])));
+    } catch {
+      // conteos son informativos; si fallan no bloquean la vista
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -142,14 +164,18 @@ export default function IncidentsPage() {
     try {
       await comentariosService.create({ incidenciaId: selected.id, contenido: newComment.trim() });
       setNewComment('');
-      setComentarios(await comentariosService.getByIncidencia(selected.id));
+      const fresh = await comentariosService.getByIncidencia(selected.id);
+      setComentarios(fresh);
+      setCommentCounts((prev) => ({ ...prev, [selected.id]: fresh.length }));
     } finally { setSendingComment(false); }
   };
 
   const deleteComment = async (id: string) => {
     if (!selected) return;
     await comentariosService.remove(id);
-    setComentarios(await comentariosService.getByIncidencia(selected.id));
+    const fresh = await comentariosService.getByIncidencia(selected.id);
+    setComentarios(fresh);
+    setCommentCounts((prev) => ({ ...prev, [selected.id]: fresh.length }));
   };
 
   const saveArc = async (e: FormEvent) => {
@@ -159,23 +185,25 @@ export default function IncidentsPage() {
     try {
       await archivosIncidenciaService.create({ ...arcForm, incidenciaId: selected.id });
       setArcForm({ ...EMPTY_ARC, incidenciaId: selected.id });
-      setArchivos(await archivosIncidenciaService.getByIncidencia(selected.id));
+      const fresh = await archivosIncidenciaService.getByIncidencia(selected.id);
+      setArchivos(fresh);
+      setArchivoCounts((prev) => ({ ...prev, [selected.id]: fresh.length }));
     } finally { setSavingArc(false); }
   };
 
   const deleteArc = async (id: string) => {
     if (!selected) return;
     await archivosIncidenciaService.remove(id);
-    setArchivos(await archivosIncidenciaService.getByIncidencia(selected.id));
+    const fresh = await archivosIncidenciaService.getByIncidencia(selected.id);
+    setArchivos(fresh);
+    setArchivoCounts((prev) => ({ ...prev, [selected.id]: fresh.length }));
   };
 
   const projectName  = (id: string) =>
-    projects.find((p) => p.id === id)?.nombre ?? id.slice(0, 8) + '…';
+    projects.find((p) => p.id === id)?.nombre ?? 'Proyecto eliminado';
 
-  const clienteName = (proyectoId: string) => {
-    const cid = projects.find((p) => p.id === proyectoId)?.clienteId;
-    return cid ? (clientes.find((c) => c.id === cid)?.empresa ?? null) : null;
-  };
+  const clienteName = (clienteId: string) =>
+    clientes.find((c) => c.id === clienteId)?.empresa ?? null;
 
   if (loading) return <FullPageSpinner />;
 
@@ -206,22 +234,44 @@ export default function IncidentsPage() {
           getColumnKey={(inc) => inc.estado}
           onMove={isAdmin ? handleMove : undefined}
           renderCard={(inc) => (
-            <div className="p-4 space-y-2.5">
+            <div className="p-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2 flex-1">
                   {inc.titulo}
                 </p>
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${PRIORIDAD_DOT[inc.prioridad]}`} title={inc.prioridad} />
               </div>
+              {inc.descripcion && (
+                <p className="text-xs text-slate-500 line-clamp-2">{inc.descripcion}</p>
+              )}
               <p className="text-[11px] text-slate-500 truncate">{projectName(inc.proyectoId)}</p>
-              {isAdmin && clienteName(inc.proyectoId) && (
-                <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
-                  {clienteName(inc.proyectoId)}
+              {isAdmin && clienteName(inc.clienteId) && (
+                <p className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded-full truncate max-w-full">
+                  <Building2 className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                  <span className="truncate">{clienteName(inc.clienteId)}</span>
                 </p>
               )}
+              <p className="text-[10px] text-slate-400">
+                {new Date(inc.fechaCreacion).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
               <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                <Badge value={inc.prioridad} />
+                <div className="flex items-center gap-2.5">
+                  <Badge value={inc.prioridad} />
+                  {(commentCounts[inc.id] > 0 || archivoCounts[inc.id] > 0) && (
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      {commentCounts[inc.id] > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <MessageSquare className="w-3 h-3" />{commentCounts[inc.id]}
+                        </span>
+                      )}
+                      {archivoCounts[inc.id] > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <Paperclip className="w-3 h-3" />{archivoCounts[inc.id]}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => openDetail(inc)}
@@ -250,10 +300,16 @@ export default function IncidentsPage() {
       <Modal open={modal === 'detail'} onClose={closeModal} title={selected?.titulo ?? ''} size="lg">
         {selected && (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2 pb-3 border-b border-slate-100">
+            <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-slate-100">
               <Badge value={selected.estado} />
               <Badge value={selected.prioridad} />
               <span className="text-xs text-slate-400">{projectName(selected.proyectoId)}</span>
+              {isAdmin && clienteName(selected.clienteId) && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded-full">
+                  <Building2 className="w-3 h-3 text-slate-400" />
+                  {clienteName(selected.clienteId)}
+                </span>
+              )}
             </div>
             {selected.descripcion && (
               <p className="text-sm text-slate-600">{selected.descripcion}</p>

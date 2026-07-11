@@ -15,6 +15,10 @@ export interface UpdateActualizacionData {
 }
 
 const actualizacionesService = {
+  async getAll(): Promise<ActualizacionProyecto[]> {
+    return actualizacionesApi.getAll({ limit: 100 });
+  },
+
   async getByProyecto(proyectoId: string): Promise<ActualizacionProyecto[]> {
     return actualizacionesApi.getByProyecto(proyectoId);
   },

@@ -80,6 +80,17 @@ export interface ArchivoProyecto {
   fecha: string;
 }
 
+// ─── Fases de proyecto ────────────────────────────────────────────────────────
+export type EstadoFase = 'pendiente' | 'en_progreso' | 'completado';
+
+export interface Fase {
+  id: string;
+  proyectoId: string;
+  nombre: string;
+  orden: number;
+  estado: EstadoFase;
+}
+
 // ─── Comentarios de incidencia ────────────────────────────────────────────────
 export interface ComentarioIncidencia {
   id: string;

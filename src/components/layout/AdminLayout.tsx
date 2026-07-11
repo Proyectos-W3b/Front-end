@@ -5,7 +5,6 @@ const NAV = [
   { to: '/admin',               icon: '🖥',  label: 'Dashboard',       end: true  },
   { to: '/admin/usuarios',      icon: '👤', label: 'Usuarios'                    },
   { to: '/admin/roles',         icon: '🔑', label: 'Roles y Permisos'            },
-  { to: '/admin/auditoria',     icon: '📋', label: 'Auditoría'                   },
   { to: '/admin/configuracion', icon: '⚙',  label: 'Configuración'               },
 ];
 

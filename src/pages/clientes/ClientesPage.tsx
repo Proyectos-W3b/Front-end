@@ -4,6 +4,7 @@ import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2, Camer
 import clientesService, { UpdateClienteData } from '../../services/clientes.service';
 import { usuariosApi, rolesApi } from '../../services/api.service';
 import Modal from '../../components/ui/Modal';
+import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/auth.store';
@@ -230,7 +231,7 @@ export default function ClientesPage() {
           )}
 
           {!perfil && (
-            <EmptyState message="No tienes un perfil de empresa aún. Contacta al administrador." />
+            <EmptyState title="No tienes un perfil de empresa aún" description="Contacta al administrador." />
           )}
         </div>
       </div>
@@ -238,14 +239,72 @@ export default function ClientesPage() {
   }
 
   /* ── Vista admin: lista de clientes ─────────────────────────────────── */
+  const columns: DataTableColumn<Cliente>[] = [
+    {
+      key: 'empresa', header: 'Empresa',
+      render: (c) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+            <Building2 className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <span className="font-medium text-slate-800">{c.empresa}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'telefono', header: 'Teléfono',
+      render: (c) => <span className="text-slate-500">{c.telefono ?? '—'}</span>,
+    },
+    {
+      key: 'direccion', header: 'Dirección', className: 'max-w-[160px]',
+      render: (c) => <span className="text-slate-500 truncate block">{c.direccion ?? '—'}</span>,
+    },
+    {
+      key: 'estado', header: 'Estado',
+      render: (c) => (
+        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${c.estaActivo ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+          {c.estaActivo
+            ? <><UserCheck className="w-3 h-3" /> Activo</>
+            : <><UserX    className="w-3 h-3" /> Inactivo</>}
+        </span>
+      ),
+    },
+    {
+      key: 'desde', header: 'Desde',
+      render: (c) => <span className="text-slate-400 text-xs">{new Date(c.creadoEn).toLocaleDateString('es-ES')}</span>,
+    },
+    {
+      key: 'acciones', header: 'Acciones', className: 'text-right',
+      render: (c) => (
+        <div className="flex items-center justify-end gap-1">
+          <Link to={`/clientes/${c.id}`}
+            className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+            title="Ver detalle">
+            <Eye className="w-3.5 h-3.5" />
+          </Link>
+          <button onClick={() => openEdit(c)}
+            className="p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+            title="Editar">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => handleDesactivar(c.id)}
+            className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+            title="Desactivar">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Clientes</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-xl font-bold text-slate-900">Clientes</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
             {clientes.length} cliente{clientes.length !== 1 ? 's' : ''} registrado{clientes.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -254,84 +313,8 @@ export default function ClientesPage() {
         </button>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Total',     value: clientes.length,                             color: 'text-slate-900'   },
-          { label: 'Activos',   value: clientes.filter((c) => c.estaActivo).length, color: 'text-emerald-600' },
-          { label: 'Inactivos', value: clientes.filter((c) => !c.estaActivo).length,color: 'text-red-500'     },
-        ].map((kpi) => (
-          <div key={kpi.label} className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_rgba(15,23,42,0.04)] px-5 py-4">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{kpi.label}</p>
-            <p className={`text-3xl font-bold tabular-nums mt-1 ${kpi.color}`}>{kpi.value}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Tabla */}
-      {clientes.length === 0 ? (
-        <EmptyState message="No hay clientes registrados." />
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="table-th">Empresa</th>
-                <th className="table-th">Teléfono</th>
-                <th className="table-th">Dirección</th>
-                <th className="table-th">Estado</th>
-                <th className="table-th">Desde</th>
-                <th className="table-th text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {clientes.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="table-td">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                        <Building2 className="w-3.5 h-3.5 text-blue-500" />
-                      </div>
-                      <span className="font-medium text-slate-800">{c.empresa}</span>
-                    </div>
-                  </td>
-                  <td className="table-td text-slate-500">{c.telefono ?? '—'}</td>
-                  <td className="table-td text-slate-500 max-w-[160px] truncate">{c.direccion ?? '—'}</td>
-                  <td className="table-td">
-                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${c.estaActivo ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                      {c.estaActivo
-                        ? <><UserCheck className="w-3 h-3" /> Activo</>
-                        : <><UserX    className="w-3 h-3" /> Inactivo</>}
-                    </span>
-                  </td>
-                  <td className="table-td text-slate-400 text-xs">
-                    {new Date(c.creadoEn).toLocaleDateString('es-ES')}
-                  </td>
-                  <td className="table-td">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link to={`/clientes/${c.id}`}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Ver detalle">
-                        <Eye className="w-3.5 h-3.5" />
-                      </Link>
-                      <button onClick={() => openEdit(c)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Editar">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleDesactivar(c.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Desactivar">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable columns={columns} data={clientes} emptyText="No hay clientes registrados." />
 
       {/* ── Modal CREAR ─────────────────────────────────────────────────── */}
       <Modal open={modal === 'create'} onClose={closeModal} title="Nuevo cliente">

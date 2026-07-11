@@ -5,6 +5,7 @@ import { Effect } from '../../components/animate-ui/primitives/effects/effect';
 import Badge from '../../components/ui/Badge';
 import { clientesApi, proyectsApi, usuariosApi } from '../../services/api.service';
 import { FullPageSpinner } from '../../components/ui/Spinner';
+import { toProjectPath } from '../../lib/slug';
 import type { Cliente, Project } from '../../types';
 
 export default function ClienteDetailPage() {
@@ -185,7 +186,7 @@ export default function ClienteDetailPage() {
                     </td>
                     <td className="table-td text-right">
                       <Link
-                        to={`/projects/${p.id}`}
+                        to={toProjectPath(p)}
                         className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
                       >
                         Ver <ExternalLink className="w-3 h-3" />
