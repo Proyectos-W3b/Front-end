@@ -74,6 +74,14 @@ export default function DashboardPage() {
     }).join(', ')
   })`;
 
+  /* ── Entrada: saludo según hora + secciones escalonadas ── */
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const stagger = (i: number) => ({
+    className: 'animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-500',
+    style: { animationDelay: `${i * 120}ms` },
+  });
+
   /* ── Cliente: progreso por proyecto ── */
   const projectProgress = projects.map((p) => {
     const proj    = incidents.filter((i) => i.proyectoId === p.id);
@@ -90,18 +98,21 @@ export default function DashboardPage() {
       <div className="space-y-5">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Mi Panel</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Bienvenido, {user?.nombre}</p>
-          </div>
-          <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-semibold text-emerald-700">Sistema operativo</span>
+        <div {...stagger(0)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{saludo}, {user?.nombre}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Este es el estado de tus proyectos hoy</p>
+            </div>
+            <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-semibold text-emerald-700">Sistema operativo</span>
+            </div>
           </div>
         </div>
 
         {/* KPI Strip cliente */}
+        <div {...stagger(1)}>
         <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-100">
 
@@ -161,8 +172,10 @@ export default function DashboardPage() {
 
           </div>
         </div>
+        </div>
 
         {/* Charts row */}
+        <div {...stagger(2)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* Progreso de proyectos */}
@@ -244,8 +257,10 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        </div>
 
         {/* Tables row */}
+        <div {...stagger(3)}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
           {/* Mis proyectos */}
@@ -314,6 +329,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+        </div>
 
       </div>
     );
@@ -326,18 +342,21 @@ export default function DashboardPage() {
     <div className="space-y-5">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Dashboard</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Bienvenido, {user?.nombre}</p>
-        </div>
-        <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-semibold text-emerald-700">Sistema operativo</span>
+      <div {...stagger(0)}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">{saludo}, {user?.nombre}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Resumen general del sistema</p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-semibold text-emerald-700">Sistema operativo</span>
+          </div>
         </div>
       </div>
 
       {/* KPI Strip admin */}
+      <div {...stagger(1)}>
       <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
         <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-100">
 
@@ -399,8 +418,10 @@ export default function DashboardPage() {
 
         </div>
       </div>
+      </div>
 
       {/* Charts row */}
+      <div {...stagger(2)}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Bar chart */}
@@ -416,7 +437,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-end gap-3 mt-6" style={{ height: '140px' }}>
-            {bars.map((bar, idx) => (
+            {bars.map((bar) => (
               <div key={bar.label} className="flex-1 flex flex-col items-center gap-1.5 h-full">
                 <span className="text-[11px] font-bold text-slate-600 tabular-nums">{bar.count}</span>
                 <div className="w-full flex-1 flex items-end">
@@ -426,7 +447,6 @@ export default function DashboardPage() {
                     title={`${bar.label}: ${bar.count}`}
                   />
                 </div>
-                {idx === 2 && <div className="w-px h-full bg-slate-100 absolute" />}
                 <span className="text-[10px] text-slate-400 whitespace-nowrap">{bar.label}</span>
               </div>
             ))}
@@ -472,8 +492,10 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Tables row */}
+      <div {...stagger(3)}>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
@@ -539,6 +561,7 @@ export default function DashboardPage() {
             </table>
           )}
         </div>
+      </div>
       </div>
 
     </div>

@@ -4,6 +4,7 @@ import usuariosService from '../../services/usuarios.service';
 import { rolesApi } from '../../services/api.service';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import Spinner from '../../components/ui/Spinner';
+import { useToast } from '../../components/ui/Toast';
 import type { User } from '../../types';
 
 interface CreateForm {
@@ -148,6 +149,7 @@ function ModalUsuario({
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function UsuariosPage() {
+  const { success, error: toastError } = useToast();
   const [usuarios,    setUsuarios]    = useState<User[]>([]);
   const [roles,       setRoles]       = useState<{ idRol: string; nombre: string }[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -172,13 +174,18 @@ export default function UsuariosPage() {
 
   useEffect(() => { cargarDatos(); }, []);
 
-  const handleCrear  = (data: any) => usuariosService.create(data).then(cargarDatos);
-  const handleEditar = (data: any) => usuariosService.update(modalEditar!.id, data).then(cargarDatos);
+  const handleCrear = (data: any) =>
+    usuariosService.create(data).then(() => { success('Usuario creado', `"${data.nombre}" ya puede iniciar sesión.`); cargarDatos(); });
+  const handleEditar = (data: any) =>
+    usuariosService.update(modalEditar!.id, data).then(() => { success('Usuario actualizado'); cargarDatos(); });
 
   const handleEliminar = async (id: string) => {
     if (!confirm('¿Eliminar este usuario?')) return;
-    await usuariosService.remove(id);
-    cargarDatos();
+    try {
+      await usuariosService.remove(id);
+      success('Usuario eliminado');
+      cargarDatos();
+    } catch { toastError('No se pudo eliminar el usuario'); }
   };
 
   if (loading) return <FullPageSpinner />;

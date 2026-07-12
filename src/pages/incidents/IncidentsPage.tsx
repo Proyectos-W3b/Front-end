@@ -12,6 +12,7 @@ import Modal from '../../components/ui/Modal';
 import KanbanBoard, { type KanbanColumn } from '../../components/ui/KanbanBoard';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
+import { useToast } from '../../components/ui/Toast';
 import { useAuthStore } from '../../store/auth.store';
 import type {
   Incidencia, Project, Cliente,
@@ -63,6 +64,7 @@ const PRIORIDAD_DOT: Record<string, string> = {
 export default function IncidentsPage() {
   const user    = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'admin';
+  const { success, error: toastError } = useToast();
 
   const [incidents, setIncidents] = useState<Incidencia[]>([]);
   const [projects,  setProjects]  = useState<Project[]>([]);
@@ -158,18 +160,22 @@ export default function IncidentsPage() {
       await asignacionesIncidenciaApi.create(selected.id, asignandoTrabajadorId);
       setAsignandoTrabajadorId('');
       setAsignados(await asignacionesIncidenciaApi.getByIncidencia(selected.id));
-    } finally { setAsignando(false); }
+      success('Trabajador asignado', 'Ya puede ver esta incidencia en su bandeja.');
+    } catch { toastError('No se pudo asignar el trabajador'); }
+    finally { setAsignando(false); }
   };
 
   const quitarTrabajador = async (asignacionId: string) => {
     if (!selected) return;
     await asignacionesIncidenciaApi.remove(asignacionId);
     setAsignados(await asignacionesIncidenciaApi.getByIncidencia(selected.id));
+    success('Asignación removida');
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta incidencia?')) return;
     await incidentsService.remove(id); load(filterProject || undefined);
+    success('Incidencia eliminada');
   };
 
   const handleMove = async (incidenciaId: string, newEstado: string) => {
@@ -180,10 +186,12 @@ export default function IncidentsPage() {
     );
     try {
       await incidentsService.update(incidenciaId, { estado: newEstado as any });
+      success('Estado actualizado', `"${inc.titulo}" pasó a ${newEstado.replace('_', ' ')}.`);
     } catch {
       setIncidents((prev) =>
         prev.map((i) => i.id === incidenciaId ? { ...i, estado: inc.estado } : i),
       );
+      toastError('No se pudo cambiar el estado');
     }
   };
 
@@ -218,7 +226,9 @@ export default function IncidentsPage() {
       const fresh = await archivosIncidenciaService.getByIncidencia(selected.id);
       setArchivos(fresh);
       setArchivoCounts((prev) => ({ ...prev, [selected.id]: fresh.length }));
-    } finally { setSavingArc(false); }
+      success('Archivo adjuntado');
+    } catch { toastError('No se pudo adjuntar el archivo'); }
+    finally { setSavingArc(false); }
   };
   const handleArcFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

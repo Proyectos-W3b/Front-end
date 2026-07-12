@@ -41,7 +41,10 @@ export default function Layout() {
           sidebarOpen={sidebarOpen}
         />
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          {/* key por ruta: cada módulo entra con un fade + deslizamiento sutil */}
+          <div key={pathname} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

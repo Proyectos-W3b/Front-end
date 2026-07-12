@@ -5,7 +5,7 @@ import type { Socket } from 'socket.io-client';
 import { useAuthStore } from '../../store/auth.store';
 import clientesService from '../../services/clientes.service';
 import chatService from '../../services/chat.service';
-import { uploadsApi } from '../../services/api.service';
+import { uploadsApi, usuariosApi } from '../../services/api.service';
 import { createSocket } from '../../lib/socket';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/button';
@@ -18,6 +18,7 @@ import {
   MessageScrollerButton,
 } from '../../components/ui/message-scroller';
 import AttachFileModal, { tipoFromFile, FileTypeIcon } from '../../components/ui/AttachFileModal';
+import { useToast } from '../../components/ui/Toast';
 import type { Cliente, Mensaje } from '../../types';
 
 // ── Color/iniciales deterministas por persona (cliente, admin o soporte) ───────
@@ -34,8 +35,11 @@ function initialsFor(nombre: string) {
   return ((words[0]?.[0] ?? '?') + (words[1]?.[0] ?? '')).toUpperCase();
 }
 
-function Avatar({ nombre, id, size = 'md' }: { nombre: string; id: string; size?: 'sm' | 'md' | 'lg' }) {
+function Avatar({ nombre, id, foto, size = 'md' }: { nombre: string; id: string; foto?: string; size?: 'sm' | 'md' | 'lg' }) {
   const sz = size === 'sm' ? 'w-8 h-8 text-xs' : size === 'lg' ? 'w-12 h-12 text-base' : 'w-10 h-10 text-sm';
+  if (foto) {
+    return <img src={foto} alt={nombre} className={`${sz} rounded-full object-cover flex-shrink-0`} />;
+  }
   return (
     <div className={`${sz} ${colorFor(id)} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>
       {initialsFor(nombre)}
@@ -53,6 +57,7 @@ export default function ClientesChatPage() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'admin';
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
 
   const [loading,       setLoading]       = useState(true);
   const [clientes,      setClientes]      = useState<Cliente[]>([]);
@@ -62,6 +67,8 @@ export default function ClientesChatPage() {
   const [mensajes,      setMensajes]      = useState<Mensaje[]>([]);
   const [input,         setInput]         = useState('');
   const [attachOpen,    setAttachOpen]    = useState(false);
+  // Foto de perfil por usuarioId — para mostrar la foto real de cada cliente en la lista
+  const [fotosUsuarios, setFotosUsuarios] = useState<Record<string, string>>({});
 
   const socketRef = useRef<Socket | null>(null);
   const activoRef = useRef<string | null>(null);
@@ -74,9 +81,16 @@ export default function ClientesChatPage() {
       setLoading(true);
       try {
         if (isAdmin) {
-          const [c, m] = await Promise.all([clientesService.getAll(), chatService.getTodos()]);
+          const [c, m, usuarios] = await Promise.all([
+            clientesService.getAll(),
+            chatService.getTodos(),
+            usuariosApi.getAll().catch(() => []),
+          ]);
           setClientes(c);
           setMensajesTodos(m);
+          setFotosUsuarios(
+            Object.fromEntries(usuarios.filter((u) => u.fotoUrl).map((u) => [u.id, u.fotoUrl!])),
+          );
         } else {
           const perfil = await clientesService.getMiPerfil();
           setPropioCliente(perfil);
@@ -102,6 +116,10 @@ export default function ClientesChatPage() {
       if (msg.clienteId === activoRef.current) {
         setMensajes((prev) => [...prev, msg]);
       }
+    });
+
+    socket.on('errorChat', (mensaje: string) => {
+      toastError('Error en el chat', mensaje);
     });
 
     return () => { socket.disconnect(); socketRef.current = null; };
@@ -155,13 +173,17 @@ export default function ClientesChatPage() {
 
   const handleEnviarArchivo = async (file: File) => {
     if (!activoId || !socketRef.current) return;
-    const objectPath = await uploadsApi.subirArchivo(file, 'chat');
-    socketRef.current.emit('enviarMensaje', {
-      clienteId: activoId,
-      archivoUrl: objectPath,
-      archivoNombre: file.name,
-      archivoTipo: tipoFromFile(file),
-    });
+    try {
+      const objectPath = await uploadsApi.subirArchivo(file, 'chat');
+      socketRef.current.emit('enviarMensaje', {
+        clienteId: activoId,
+        archivoUrl: objectPath,
+        archivoNombre: file.name,
+        archivoTipo: tipoFromFile(file),
+      });
+    } catch {
+      toastError('No se pudo enviar el archivo', 'Revisa tu conexión e inténtalo de nuevo.');
+    }
   };
 
   if (loading) return <FullPageSpinner />;
@@ -314,7 +336,7 @@ export default function ClientesChatPage() {
                   activoId === cliente.id ? 'bg-blue-50 border-r-2 border-blue-600' : ''
                 }`}
               >
-                <Avatar nombre={cliente.empresa} id={cliente.id} />
+                <Avatar nombre={cliente.empresa} id={cliente.id} foto={fotosUsuarios[cliente.usuarioId]} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-slate-900 truncate">{cliente.empresa}</span>
@@ -343,7 +365,7 @@ export default function ClientesChatPage() {
       {activoCliente ? (
         <div className="flex-1 flex flex-col bg-slate-50">
           <div className="bg-white border-b border-slate-100 px-5 py-3.5 flex items-center gap-3 flex-shrink-0">
-            <Avatar nombre={activoCliente.empresa} id={activoCliente.id} />
+            <Avatar nombre={activoCliente.empresa} id={activoCliente.id} foto={fotosUsuarios[activoCliente.usuarioId]} />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-slate-900 text-sm">{activoCliente.empresa}</p>
             </div>

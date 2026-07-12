@@ -7,6 +7,7 @@ import Modal from '../../components/ui/Modal';
 import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
+import { useToast } from '../../components/ui/Toast';
 import { useAuthStore } from '../../store/auth.store';
 import type { Cliente } from '../../types';
 
@@ -30,6 +31,7 @@ const EMPTY_EDIT:   EditForm   = { empresa: '', telefono: '', direccion: '' };
 
 export default function ClientesPage() {
   const { user, setAuth } = useAuthStore();
+  const { success, error: toastError } = useToast();
   const token = useAuthStore((s) => s.token);
   const isAdmin = user?.rol === 'admin';
 
@@ -99,6 +101,10 @@ export default function ClientesPage() {
       }
       closeModal();
       load();
+      success(
+        modal === 'create' ? 'Cliente creado' : 'Cliente actualizado',
+        modal === 'create' ? `"${createForm.empresa}" ya puede iniciar sesión.` : undefined,
+      );
     } catch (err: any) {
       setError(err?.message ?? 'Ocurrió un error');
     } finally {
@@ -108,7 +114,10 @@ export default function ClientesPage() {
 
   const handleDesactivar = async (id: string) => {
     if (!confirm('¿Desactivar este cliente?')) return;
-    try { await clientesService.desactivar(id); load(); } catch { /* noop */ }
+    try {
+      await clientesService.desactivar(id); load();
+      success('Cliente desactivado');
+    } catch { toastError('No se pudo desactivar el cliente'); }
   };
 
   // ── Estado edición perfil (vista cliente) ─────────────────────────────
@@ -126,6 +135,9 @@ export default function ClientesPage() {
       const objectPath = await uploadsApi.subirArchivo(file, 'perfiles');
       const updated = await usuariosApi.update(user.id, { fotoUrl: objectPath });
       setAuth({ ...user, fotoUrl: updated.fotoUrl }, token!);
+      success('Foto de perfil actualizada');
+    } catch {
+      toastError('No se pudo subir la foto');
     } finally {
       setSubiendoFoto(false);
     }
@@ -138,7 +150,8 @@ export default function ClientesPage() {
       const updated = await usuariosApi.update(user.id, { nombre: nuevoNombre.trim() });
       setAuth({ ...user, nombre: updated.nombre }, token!);
       setEditNombre(false);
-    } catch { /* noop */ }
+      success('Nombre actualizado');
+    } catch { toastError('No se pudo actualizar el nombre'); }
     finally { setSavingNombre(false); }
   };
 

@@ -4,6 +4,7 @@ import usuariosService from '../../services/usuarios.service';
 import { rolesApi } from '../../services/api.service';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import Spinner from '../../components/ui/Spinner';
+import { useToast } from '../../components/ui/Toast';
 import type { User } from '../../types';
 
 interface CreateForm {
@@ -126,6 +127,7 @@ function ModalTrabajador({
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function TrabajadoresPage() {
+  const { success, error: toastError } = useToast();
   const [trabajadores, setTrabajadores] = useState<User[]>([]);
   const [rolTrabajadorId, setRolTrabajadorId] = useState('');
   const [loading,     setLoading]     = useState(true);
@@ -151,13 +153,18 @@ export default function TrabajadoresPage() {
   useEffect(() => { cargarDatos(); }, []);
 
   const handleCrear = (data: any) =>
-    usuariosService.create({ ...data, rolId: rolTrabajadorId }).then(cargarDatos);
-  const handleEditar = (data: any) => usuariosService.update(modalEditar!.id, data).then(cargarDatos);
+    usuariosService.create({ ...data, rolId: rolTrabajadorId })
+      .then(() => { success('Trabajador creado', `"${data.nombre}" ya puede iniciar sesión y recibir asignaciones.`); cargarDatos(); });
+  const handleEditar = (data: any) =>
+    usuariosService.update(modalEditar!.id, data).then(() => { success('Trabajador actualizado'); cargarDatos(); });
 
   const handleEliminar = async (id: string) => {
     if (!confirm('¿Eliminar este trabajador?')) return;
-    await usuariosService.remove(id);
-    cargarDatos();
+    try {
+      await usuariosService.remove(id);
+      success('Trabajador eliminado');
+      cargarDatos();
+    } catch { toastError('No se pudo eliminar el trabajador'); }
   };
 
   if (loading) return <FullPageSpinner />;

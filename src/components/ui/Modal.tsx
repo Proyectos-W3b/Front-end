@@ -29,7 +29,7 @@ export default function Modal({ open, onClose, title, description, children, siz
         onClick={onClose}
       />
       {/* Panel */}
-      <div className={`relative bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 w-full ${widths[size]} max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150`}>
+      <div className={`relative bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 w-full ${widths[size]} max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out`}>
         <button
           onClick={onClose}
           className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"

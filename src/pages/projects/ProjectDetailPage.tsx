@@ -22,6 +22,7 @@ import PercentageSlider from '../../components/ui/PercentageSlider';
 import StatCard from '../../components/ui/StatCard';
 import ProgressRing from '../../components/ui/ProgressRing';
 import MetaChip from '../../components/ui/MetaChip';
+import { useToast } from '../../components/ui/Toast';
 import { useAuthStore } from '../../store/auth.store';
 import { extractIdMatcher } from '../../lib/slug';
 import type {
@@ -34,7 +35,7 @@ type Tab = 'fases' | 'incidencias' | 'actualizaciones' | 'archivos' | 'equipo';
 type DetailTab = 'comentarios' | 'archivos' | 'asignados';
 
 const EMPTY_INC: CreateIncidenciaData = {
-  titulo: '', descripcion: '', proyectoId: '', clienteId: '', reportadoPorId: '', prioridad: 'media', estado: 'abierta',
+  titulo: '', descripcion: '', proyectoId: '', prioridad: 'media', estado: 'abierta',
 };
 const EMPTY_ACT: CreateActualizacionData = {
   proyectoId: '', titulo: '', descripcion: '', porcentajeAvance: 0,
@@ -58,6 +59,7 @@ export default function ProjectDetailPage() {
   const [id,     setId]     = useState<string | null>(null);
   const user    = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'admin';
+  const { success, error: toastError } = useToast();
   const [project,       setProject]       = useState<Project | null>(null);
   const [incidents,     setIncidents]     = useState<Incidencia[]>([]);
   const [actualizaciones, setActualizaciones] = useState<ActualizacionProyecto[]>([]);
@@ -186,13 +188,15 @@ export default function ProjectDetailPage() {
       await asignacionesTrabajadorApi.create(id, asignandoTrabajadorId);
       setAsignandoTrabajadorId('');
       await loadEquipo();
-    } catch (err: any) { setError(err?.message ?? 'Error al asignar trabajador'); }
+      success('Trabajador asignado al equipo', 'Ya puede ver este proyecto en su bandeja.');
+    } catch (err: any) { toastError('No se pudo asignar', err?.message); }
     finally { setAsignando(false); }
   };
 
   const quitarTrabajador = async (asignacionId: string) => {
     await asignacionesTrabajadorApi.remove(asignacionId);
     loadEquipo();
+    success('Trabajador removido del equipo');
   };
 
   const closeModal = () => { setModal(null); setSelectedInc(null); setSelectedAct(null); setError(''); };
@@ -206,10 +210,17 @@ export default function ProjectDetailPage() {
     setModal('editInc');
   };
   const saveIncident = async (e: FormEvent) => {
-    e.preventDefault(); setSaving(true); setError('');
+    e.preventDefault();
+    if (incForm.titulo.trim().length < 3) { setError('El título debe tener al menos 3 caracteres'); return; }
+    setSaving(true); setError('');
     try {
-      if (modal === 'createInc') await incidentsService.create(incForm);
-      else if (selectedInc)       await incidentsService.update(selectedInc.id, incForm);
+      if (modal === 'createInc') {
+        await incidentsService.create(incForm);
+        success('Incidencia creada', `"${incForm.titulo}" fue registrada en el proyecto.`);
+      } else if (selectedInc) {
+        await incidentsService.update(selectedInc.id, incForm);
+        success('Incidencia actualizada');
+      }
       closeModal(); loadProject();
     } catch (err: any) { setError(err?.message ?? 'Error al guardar incidencia'); }
     finally { setSaving(false); }
@@ -217,6 +228,7 @@ export default function ProjectDetailPage() {
   const deleteInc = async (incId: string) => {
     if (!confirm('¿Eliminar esta incidencia?')) return;
     await incidentsService.remove(incId); loadProject();
+    success('Incidencia eliminada');
   };
 
   /* ── Incident detail: comentarios / archivos ── */
@@ -248,13 +260,16 @@ export default function ProjectDetailPage() {
       await asignacionesIncidenciaApi.create(selectedInc.id, asignandoIncTrabajadorId);
       setAsignandoIncTrabajadorId('');
       setIncAsignados(await asignacionesIncidenciaApi.getByIncidencia(selectedInc.id));
-    } finally { setAsignandoInc(false); }
+      success('Trabajador asignado', 'Ya puede ver esta incidencia en su bandeja.');
+    } catch { toastError('No se pudo asignar el trabajador'); }
+    finally { setAsignandoInc(false); }
   };
 
   const quitarIncTrabajador = async (asignacionId: string) => {
     if (!selectedInc) return;
     await asignacionesIncidenciaApi.remove(asignacionId);
     setIncAsignados(await asignacionesIncidenciaApi.getByIncidencia(selectedInc.id));
+    success('Asignación removida');
   };
   const sendComment = async (e: FormEvent) => {
     e.preventDefault();
@@ -279,7 +294,9 @@ export default function ProjectDetailPage() {
       await archivosIncidenciaService.create({ ...incArcForm, incidenciaId: selectedInc.id });
       setIncArcForm({ ...EMPTY_INC_ARC, incidenciaId: selectedInc.id });
       setIncArchivos(await archivosIncidenciaService.getByIncidencia(selectedInc.id));
-    } finally { setSavingIncArc(false); }
+      success('Archivo adjuntado', 'El archivo quedó vinculado a la incidencia.');
+    } catch { toastError('No se pudo adjuntar el archivo'); }
+    finally { setSavingIncArc(false); }
   };
   const deleteIncArc = async (arcId: string) => {
     if (!selectedInc) return;
@@ -307,12 +324,17 @@ export default function ProjectDetailPage() {
     setModal('editAct');
   };
   const saveAct = async (e: FormEvent) => {
-    e.preventDefault(); setSaving(true); setError('');
+    e.preventDefault();
+    if (actForm.titulo.trim().length < 3) { setError('El título debe tener al menos 3 caracteres'); return; }
+    setSaving(true); setError('');
     try {
-      if (modal === 'createAct') await actualizacionesService.create(actForm);
-      else if (selectedAct) {
+      if (modal === 'createAct') {
+        await actualizacionesService.create(actForm);
+        success('Actualización registrada', `Avance del proyecto: ${actForm.porcentajeAvance}%.`);
+      } else if (selectedAct) {
         const { proyectoId: _, ...rest } = actForm;
         await actualizacionesService.update(selectedAct.id, rest as UpdateActualizacionData);
+        success('Actualización guardada');
       }
       closeModal(); loadActualizaciones();
     } catch (err: any) { setError(err?.message ?? 'Error al guardar actualización'); }
@@ -321,6 +343,7 @@ export default function ProjectDetailPage() {
   const deleteAct = async (actId: string) => {
     if (!confirm('¿Eliminar esta actualización?')) return;
     await actualizacionesService.remove(actId); loadActualizaciones();
+    success('Actualización eliminada');
   };
 
   /* ── Archivo handlers ── */
@@ -330,6 +353,7 @@ export default function ProjectDetailPage() {
     try {
       await archivosProyectoService.create(arcForm);
       closeModal(); loadArchivos();
+      success('Archivo agregado', `"${arcForm.nombre}" quedó disponible en el proyecto.`);
     } catch (err: any) { setError(err?.message ?? 'Error al guardar archivo'); }
     finally { setSaving(false); }
   };
@@ -347,6 +371,7 @@ export default function ProjectDetailPage() {
   const deleteArc = async (arcId: string) => {
     if (!confirm('¿Eliminar este archivo?')) return;
     await archivosProyectoService.remove(arcId); loadArchivos();
+    success('Archivo eliminado');
   };
 
   /* ── Fase handlers ── */
@@ -359,6 +384,7 @@ export default function ProjectDetailPage() {
       const created = await fasesService.create({ proyectoId: id!, nombre: faseNombre.trim() });
       setFases((prev) => [...prev, created]);
       closeModal();
+      success('Fase creada', `"${created.nombre}" se agregó al flujo del proyecto.`);
     } catch (err: any) { setError(err?.message ?? 'Error al crear fase'); }
     finally { setSaving(false); }
   };
@@ -386,8 +412,14 @@ export default function ProjectDetailPage() {
 
   /* ── Project edit ── */
   const saveProject = async (e: FormEvent) => {
-    e.preventDefault(); setSaving(true);
-    try { await projectsService.update(id!, projForm); closeModal(); loadProject(); }
+    e.preventDefault();
+    if (projForm.nombre.trim().length < 3) { setError('El nombre debe tener al menos 3 caracteres'); return; }
+    setSaving(true);
+    try {
+      await projectsService.update(id!, projForm);
+      closeModal(); loadProject();
+      success('Proyecto actualizado', 'Los cambios fueron guardados.');
+    }
     catch (err: any) { setError(err?.message ?? 'Error al guardar'); }
     finally { setSaving(false); }
   };

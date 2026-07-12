@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Outfit:wght@100..900&display=swap');
 @import 'tw-animate-css';
 
 @tailwind base;
@@ -8,13 +8,13 @@
 @layer base {
   :root {
     /* Tokens de color para componentes shadcn (Button, Message*, etc.) — alineados
-       con la paleta azul/slate que ya usa el resto de la app. */
+       con la paleta cobalto/slate de la app (ver tailwind.config.js). */
     --background:         #ffffff;
     --foreground:         #0f172a;
     --border:             #e2e8f0;
     --input:              #e2e8f0;
-    --ring:               #3b82f6;
-    --primary:            #2563eb;
+    --ring:               #4f6cc7;
+    --primary:            #3d55b8;
     --primary-foreground: #ffffff;
     --secondary:          #f1f5f9;
     --secondary-foreground: #0f172a;
@@ -28,9 +28,16 @@
     --popover:            #ffffff;
     --popover-foreground: #0f172a;
   }
+  html, body, #root {
+    height: 100%;
+  }
   body {
-    @apply antialiased bg-slate-50 text-slate-900;
-    font-family: 'Roboto', sans-serif;
+    /* La app es de pantalla completa con scroll interno (Layout);
+       el documento en sí nunca debe desplazarse. */
+    @apply antialiased bg-slate-50 text-slate-900 font-sans overflow-hidden;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display;
   }
   * {
     @apply border-slate-200;
@@ -40,7 +47,8 @@
 @layer components {
   .btn {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+           active:scale-[.98];
   }
   .btn-primary {
     @apply btn bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800
@@ -98,7 +106,7 @@
     margin-top: -6px;
     border-radius: 9999px;
     background: #ffffff;
-    border: 3px solid #2563eb;
+    border: 3px solid #3d55b8;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
     cursor: grab;
   }
@@ -115,7 +123,7 @@
     height: 20px;
     border-radius: 9999px;
     background: #ffffff;
-    border: 3px solid #2563eb;
+    border: 3px solid #3d55b8;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
     cursor: grab;
   }

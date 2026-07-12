@@ -18,6 +18,7 @@ import { Select, SelectItem } from '../../components/ui/aria/Select';
 import { DatePicker } from '../../components/ui/aria/DatePicker';
 import { Button } from '../../components/ui/aria/Button';
 import FormSection from '../../components/ui/FormSection';
+import { useToast } from '../../components/ui/Toast';
 import { useAuthStore } from '../../store/auth.store';
 import { toProjectPath } from '../../lib/slug';
 import type { Project, Cliente } from '../../types';
@@ -35,6 +36,7 @@ const EMPTY_FORM: CreateProjectData = {
 export default function ProjectsPage() {
   const user    = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'admin';
+  const { success, error: toastError } = useToast();
   const [projects,  setProjects]  = useState<Project[]>([]);
   const [clientes,  setClientes]  = useState<Cliente[]>([]);
   const [avanceMap, setAvanceMap] = useState<Record<string, number>>({});
@@ -93,10 +95,17 @@ export default function ProjectsPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (form.nombre.trim().length < 3) { setError('El nombre debe tener al menos 3 caracteres'); return; }
+    if (form.fechaFin && form.fechaFin < form.fechaInicio) { setError('La fecha fin no puede ser anterior a la fecha de inicio'); return; }
     setSaving(true); setError('');
     try {
-      if (modal === 'create') await projectsService.create(form);
-      else if (selected)      await projectsService.update(selected.id, form);
+      if (modal === 'create') {
+        await projectsService.create(form);
+        success('Proyecto creado', `"${form.nombre}" se registró correctamente.`);
+      } else if (selected) {
+        await projectsService.update(selected.id, form);
+        success('Proyecto actualizado', `Los cambios en "${form.nombre}" fueron guardados.`);
+      }
       closeModal(); load();
     } catch (err: any) { setError(err?.message ?? 'Error al guardar'); }
     finally { setSaving(false); }
@@ -104,7 +113,13 @@ export default function ProjectsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este proyecto?')) return;
-    await projectsService.remove(id); load();
+    try {
+      await projectsService.remove(id);
+      success('Proyecto eliminado');
+      load();
+    } catch {
+      toastError('No se pudo eliminar el proyecto');
+    }
   };
 
   const COLUMNS_ADMIN: DataTableColumn<Project>[] = [
