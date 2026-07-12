@@ -1,6 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Building2, Settings2, Pencil, Trash2, Eye } from 'lucide-react';
+import { ExternalLink, Building2, Settings2, Pencil, Trash2, Eye, FileText, Tag, CalendarDays } from 'lucide-react';
 import projectsService, { CreateProjectData } from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
 import actualizacionesService from '../../services/actualizaciones.service';
@@ -17,6 +17,7 @@ import { TextField } from '../../components/ui/aria/TextField';
 import { Select, SelectItem } from '../../components/ui/aria/Select';
 import { DatePicker } from '../../components/ui/aria/DatePicker';
 import { Button } from '../../components/ui/aria/Button';
+import FormSection from '../../components/ui/FormSection';
 import { useAuthStore } from '../../store/auth.store';
 import { toProjectPath } from '../../lib/slug';
 import type { Project, Cliente } from '../../types';
@@ -228,37 +229,39 @@ export default function ProjectsPage() {
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>
             )}
 
-            {/* ── Información general ── */}
-            <div className="space-y-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Información general</p>
-              <Select
-                label="Cliente *"
-                placeholder="Seleccionar cliente"
-                selectedKey={form.clienteId || null}
-                onSelectionChange={(key) => setForm({ ...form, clienteId: String(key) })}
-                isRequired
-              >
-                {clientes.map((c) => <SelectItem key={c.id} id={c.id}>{c.empresa}</SelectItem>)}
-              </Select>
-              <TextField
-                label="Nombre *"
-                value={form.nombre}
-                onChange={(v) => setForm({ ...form, nombre: v })}
-                isRequired
-              />
+            <FormSection first icon={FileText} title="Información general"
+              description="Qué se va a construir y para quién">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select
+                  label="Cliente *"
+                  placeholder="Seleccionar cliente"
+                  selectedKey={form.clienteId || null}
+                  onSelectionChange={(key) => setForm({ ...form, clienteId: String(key) })}
+                  isRequired
+                >
+                  {clientes.map((c) => <SelectItem key={c.id} id={c.id}>{c.empresa}</SelectItem>)}
+                </Select>
+                <TextField
+                  label="Nombre *"
+                  placeholder="Ej: Página web corporativa"
+                  value={form.nombre}
+                  onChange={(v) => setForm({ ...form, nombre: v })}
+                  isRequired
+                />
+              </div>
               <TextField
                 label="Descripción *"
+                placeholder="Describe brevemente el objetivo del proyecto…"
                 multiline
                 rows={3}
                 value={form.descripcion}
                 onChange={(v) => setForm({ ...form, descripcion: v })}
                 isRequired
               />
-            </div>
+            </FormSection>
 
-            {/* ── Clasificación ── */}
-            <div className="space-y-4 border-t border-slate-100 pt-5">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clasificación</p>
+            <FormSection icon={Tag} title="Clasificación"
+              description="Categoría y estado inicial">
               <div className="grid grid-cols-2 gap-4">
                 <Select
                   label="Tipo *"
@@ -283,11 +286,10 @@ export default function ProjectsPage() {
                   <SelectItem id="completado">Completado</SelectItem>
                 </Select>
               </div>
-            </div>
+            </FormSection>
 
-            {/* ── Cronograma ── */}
-            <div className="space-y-4 border-t border-slate-100 pt-5">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cronograma</p>
+            <FormSection icon={CalendarDays} title="Cronograma"
+              description="Fechas planificadas del proyecto">
               <div className="grid grid-cols-2 gap-4">
                 <DatePicker
                   label="Fecha inicio *"
@@ -302,7 +304,7 @@ export default function ProjectsPage() {
                   onChange={(d) => setForm({ ...form, fechaFin: d ? d.toString() : undefined })}
                 />
               </div>
-            </div>
+            </FormSection>
 
             <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
               <Button type="button" variant="secondary" slot="close">Cancelar</Button>
