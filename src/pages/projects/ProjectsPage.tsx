@@ -4,16 +4,27 @@ import { ExternalLink, Building2, Settings2, Pencil, Trash2, Eye } from 'lucide-
 import projectsService, { CreateProjectData } from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
 import actualizacionesService from '../../services/actualizaciones.service';
+import { parseDate, type CalendarDate } from '@internationalized/date';
 import Badge from '../../components/ui/Badge';
-import Modal from '../../components/ui/Modal';
 import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import ProgressBar from '../../components/ui/ProgressBar';
-import DatePicker from '../../components/ui/DatePicker';
+import { Modal } from '../../components/ui/aria/Modal';
+import { Dialog, Heading } from '../../components/ui/aria/Dialog';
+import { Form } from '../../components/ui/aria/Form';
+import { TextField } from '../../components/ui/aria/TextField';
+import { Select, SelectItem } from '../../components/ui/aria/Select';
+import { DatePicker } from '../../components/ui/aria/DatePicker';
+import { Button } from '../../components/ui/aria/Button';
 import { useAuthStore } from '../../store/auth.store';
 import { toProjectPath } from '../../lib/slug';
 import type { Project, Cliente } from '../../types';
+
+const toCalendarDate = (iso?: string): CalendarDate | null => {
+  if (!iso) return null;
+  try { return parseDate(iso); } catch { return null; }
+};
 
 const EMPTY_FORM: CreateProjectData = {
   clienteId: '', nombre: '', descripcion: '', tipo: 'software',
@@ -207,88 +218,100 @@ export default function ProjectsPage() {
         <DataTable columns={isAdmin ? COLUMNS_ADMIN : COLUMNS_CLIENTE} data={projects} emptyText="Sin proyectos registrados" />
       )}
 
-      <Modal open={modal !== null} onClose={closeModal} size="lg"
-        title={modal === 'create' ? 'Nuevo proyecto' : 'Editar proyecto'}>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>
-          )}
+      <Modal size="lg" isOpen={modal !== null} onOpenChange={(v) => { if (!v) closeModal(); }}>
+        <Dialog>
+          <Heading slot="title" className="text-lg font-semibold text-slate-900 tracking-tight pr-8 mb-5">
+            {modal === 'create' ? 'Nuevo proyecto' : 'Editar proyecto'}
+          </Heading>
+          <Form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>
+            )}
 
-          {/* ── Información general ── */}
-          <div className="space-y-4">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Información general</p>
-            <div>
-              <label className="label">Cliente *</label>
-              <select className="input" value={form.clienteId}
-                onChange={(e) => setForm({ ...form, clienteId: e.target.value })} required>
-                <option value="">Seleccionar cliente</option>
-                {clientes.map((c) => <option key={c.id} value={c.id}>{c.empresa}</option>)}
-              </select>
+            {/* ── Información general ── */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Información general</p>
+              <Select
+                label="Cliente *"
+                placeholder="Seleccionar cliente"
+                selectedKey={form.clienteId || null}
+                onSelectionChange={(key) => setForm({ ...form, clienteId: String(key) })}
+                isRequired
+              >
+                {clientes.map((c) => <SelectItem key={c.id} id={c.id}>{c.empresa}</SelectItem>)}
+              </Select>
+              <TextField
+                label="Nombre *"
+                value={form.nombre}
+                onChange={(v) => setForm({ ...form, nombre: v })}
+                isRequired
+              />
+              <TextField
+                label="Descripción *"
+                multiline
+                rows={3}
+                value={form.descripcion}
+                onChange={(v) => setForm({ ...form, descripcion: v })}
+                isRequired
+              />
             </div>
-            <div>
-              <label className="label">Nombre *</label>
-              <input className="input" value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
-            </div>
-            <div>
-              <label className="label">Descripción *</label>
-              <textarea className="input resize-none" rows={3} value={form.descripcion}
-                onChange={(e) => setForm({ ...form, descripcion: e.target.value })} required />
-            </div>
-          </div>
 
-          {/* ── Clasificación ── */}
-          <div className="space-y-4 border-t border-slate-100 pt-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clasificación</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">Tipo *</label>
-                <select className="input" value={form.tipo}
-                  onChange={(e) => setForm({ ...form, tipo: e.target.value })} required>
-                  <option value="software">Software</option>
-                  <option value="hardware">Hardware</option>
-                  <option value="consultoria">Consultoría</option>
-                  <option value="soporte">Soporte</option>
-                  <option value="infraestructura">Infraestructura</option>
-                  <option value="otro">Otro</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Estado</label>
-                <select className="input" value={form.estado}
-                  onChange={(e) => setForm({ ...form, estado: e.target.value })}>
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                  <option value="completado">Completado</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Cronograma ── */}
-          <div className="space-y-4 border-t border-slate-100 pt-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cronograma</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">Fecha inicio *</label>
-                <DatePicker value={form.fechaInicio}
-                  onChange={(v) => setForm({ ...form, fechaInicio: v })} required />
-              </div>
-              <div>
-                <label className="label">Fecha fin</label>
-                <DatePicker value={form.fechaFin} min={form.fechaInicio}
-                  onChange={(v) => setForm({ ...form, fechaFin: v || undefined })} />
+            {/* ── Clasificación ── */}
+            <div className="space-y-4 border-t border-slate-100 pt-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clasificación</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Tipo *"
+                  selectedKey={form.tipo}
+                  onSelectionChange={(key) => setForm({ ...form, tipo: String(key) })}
+                  isRequired
+                >
+                  <SelectItem id="software">Software</SelectItem>
+                  <SelectItem id="hardware">Hardware</SelectItem>
+                  <SelectItem id="consultoria">Consultoría</SelectItem>
+                  <SelectItem id="soporte">Soporte</SelectItem>
+                  <SelectItem id="infraestructura">Infraestructura</SelectItem>
+                  <SelectItem id="otro">Otro</SelectItem>
+                </Select>
+                <Select
+                  label="Estado"
+                  selectedKey={form.estado}
+                  onSelectionChange={(key) => setForm({ ...form, estado: String(key) })}
+                >
+                  <SelectItem id="activo">Activo</SelectItem>
+                  <SelectItem id="inactivo">Inactivo</SelectItem>
+                  <SelectItem id="completado">Completado</SelectItem>
+                </Select>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
-            <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
-            <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
-        </form>
+            {/* ── Cronograma ── */}
+            <div className="space-y-4 border-t border-slate-100 pt-5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cronograma</p>
+              <div className="grid grid-cols-2 gap-4">
+                <DatePicker
+                  label="Fecha inicio *"
+                  value={toCalendarDate(form.fechaInicio)}
+                  onChange={(d) => setForm({ ...form, fechaInicio: d ? d.toString() : '' })}
+                  isRequired
+                />
+                <DatePicker
+                  label="Fecha fin"
+                  value={toCalendarDate(form.fechaFin)}
+                  minValue={toCalendarDate(form.fechaInicio) ?? undefined}
+                  onChange={(d) => setForm({ ...form, fechaFin: d ? d.toString() : undefined })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+              <Button type="button" variant="secondary" slot="close">Cancelar</Button>
+              <Button type="submit" isDisabled={saving}>
+                {saving ? 'Guardando…' : 'Guardar'}
+              </Button>
+            </div>
+          </Form>
+        </Dialog>
       </Modal>
     </div>
   );

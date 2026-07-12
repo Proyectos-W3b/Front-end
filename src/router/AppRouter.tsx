@@ -17,6 +17,7 @@ import ClientesPage        from '../pages/clientes/ClientesPage';
 import ClientesChatPage   from '../pages/clientes/ClientesChatPage';
 import ClienteDetailPage  from '../pages/clientes/ClienteDetailPage';
 import TrabajadoresPage   from '../pages/rrhh/TrabajadoresPage';
+import UsuariosPage       from '../pages/usuarios/UsuariosPage';
 
 // Admin panel (auth independiente — sin backend)
 import AdminLoginPage     from '../pages/admin/AdminLoginPage';
@@ -47,6 +48,7 @@ export default function AppRouter() {
             <Route path="/clientes/chat"   element={<ClientesChatPage />} />
             <Route path="/clientes/:id"    element={<ClienteDetailPage />} />
             <Route path="/trabajadores"  element={<TrabajadoresPage />} />
+            <Route path="/usuarios"      element={<UsuariosPage />} />
           </Route>
         </Route>
 

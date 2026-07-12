@@ -130,28 +130,27 @@ export interface ArchivoIncidencia {
   fecha: string;
 }
 
-// ─── Trabajadores ─────────────────────────────────────────────────────────────
-export type EstadoTrabajador = 'activo' | 'inactivo';
-export type CargoTrabajador  = 'desarrollador' | 'diseñador' | 'gerente' | 'analista' | 'qa';
-
-export interface Trabajador {
+// ─── Asignaciones de trabajador (equipo de proyecto / incidencia) ─────────────
+interface TrabajadorResumen {
   id: string;
   nombre: string;
-  apellido: string;
-  correo: string;
-  cargo: CargoTrabajador;
-  departamento: string;
-  estado: EstadoTrabajador;
-  proyectoId?: string;
-  creadoEn: string;
+  fotoUrl?: string;
 }
 
 export interface AsignacionTrabajador {
   id: string;
-  trabajadorId: string;
   proyectoId: string;
-  rol: string;
+  trabajadorId: string;
   fechaAsignacion: string;
+  trabajador?: TrabajadorResumen;
+}
+
+export interface AsignacionIncidencia {
+  id: string;
+  incidenciaId: string;
+  trabajadorId: string;
+  fechaAsignacion: string;
+  trabajador?: TrabajadorResumen;
 }
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────

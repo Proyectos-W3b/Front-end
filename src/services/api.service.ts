@@ -19,6 +19,8 @@ import type {
   ArchivoIncidencia,
   ComentarioIncidencia,
   Mensaje,
+  AsignacionTrabajador,
+  AsignacionIncidencia,
 } from '../types';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -378,5 +380,39 @@ export const mensajesApi = {
 
   async marcarLeidos(clienteId: string): Promise<void> {
     await api.patch(`/mensajes/cliente/${clienteId}/leer`);
+  },
+};
+
+// ── Asignaciones de trabajador a proyecto ──────────────────────────────────────
+export const asignacionesTrabajadorApi = {
+  async getByProyecto(proyectoId: string): Promise<AsignacionTrabajador[]> {
+    const { data } = await api.get(`/asignaciones-trabajador/proyecto/${proyectoId}`);
+    return Array.isArray(data) ? data : data.data ?? [];
+  },
+
+  async create(proyectoId: string, trabajadorId: string): Promise<AsignacionTrabajador> {
+    const { data } = await api.post('/asignaciones-trabajador', { proyectoId, trabajadorId });
+    return data;
+  },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/asignaciones-trabajador/${id}`);
+  },
+};
+
+// ── Asignaciones de trabajador a incidencia ────────────────────────────────────
+export const asignacionesIncidenciaApi = {
+  async getByIncidencia(incidenciaId: string): Promise<AsignacionIncidencia[]> {
+    const { data } = await api.get(`/asignaciones-incidencia/incidencia/${incidenciaId}`);
+    return Array.isArray(data) ? data : data.data ?? [];
+  },
+
+  async create(incidenciaId: string, trabajadorId: string): Promise<AsignacionIncidencia> {
+    const { data } = await api.post('/asignaciones-incidencia', { incidenciaId, trabajadorId });
+    return data;
+  },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/asignaciones-incidencia/${id}`);
   },
 };

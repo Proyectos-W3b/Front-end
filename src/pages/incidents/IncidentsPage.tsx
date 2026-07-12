@@ -1,11 +1,11 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { MessageSquare, Paperclip, Trash2, ExternalLink, Send, Eye, Building2 } from 'lucide-react';
+import { MessageSquare, Paperclip, Trash2, ExternalLink, Send, Eye, Building2, Users } from 'lucide-react';
 import incidentsService from '../../services/incidents.service';
 import projectsService from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
 import comentariosService from '../../services/comentarios.service';
 import archivosIncidenciaService, { CreateArchivoIncidenciaData } from '../../services/archivos-incidencia.service';
-import { uploadsApi } from '../../services/api.service';
+import { uploadsApi, asignacionesIncidenciaApi, usuariosApi } from '../../services/api.service';
 import { inferirTipoArchivo } from '../../lib/fileType';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -15,7 +15,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/auth.store';
 import type {
   Incidencia, Project, Cliente,
-  ComentarioIncidencia, ArchivoIncidencia,
+  ComentarioIncidencia, ArchivoIncidencia, AsignacionIncidencia, User,
 } from '../../types';
 
 const EMPTY_ARC: CreateArchivoIncidenciaData = {
@@ -80,7 +80,11 @@ export default function IncidentsPage() {
   const [arcForm,        setArcForm]        = useState<CreateArchivoIncidenciaData>(EMPTY_ARC);
   const [savingArc,      setSavingArc]      = useState(false);
   const [subiendoArc,    setSubiendoArc]    = useState(false);
-  const [detailTab,      setDetailTab]      = useState<'comentarios' | 'archivos'>('comentarios');
+  const [detailTab,      setDetailTab]      = useState<'comentarios' | 'archivos' | 'asignados'>('comentarios');
+  const [asignados,      setAsignados]      = useState<AsignacionIncidencia[]>([]);
+  const [trabajadores,   setTrabajadores]   = useState<User[]>([]);
+  const [asignandoTrabajadorId, setAsignandoTrabajadorId] = useState('');
+  const [asignando,      setAsignando]      = useState(false);
 
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [archivoCounts, setArchivoCounts] = useState<Record<string, number>>({});
@@ -130,15 +134,38 @@ export default function IncidentsPage() {
     setModal('detail');
     setLoadingDetail(true);
     try {
-      const [c, a] = await Promise.all([
+      const [c, a, asig] = await Promise.all([
         comentariosService.getByIncidencia(inc.id),
         archivosIncidenciaService.getByIncidencia(inc.id),
+        asignacionesIncidenciaApi.getByIncidencia(inc.id),
       ]);
       setComentarios(c);
       setArchivos(a);
+      setAsignados(asig);
+      if (trabajadores.length === 0) {
+        const usuarios = await usuariosApi.getAll();
+        setTrabajadores(usuarios.filter((u) => u.rol === 'trabajador'));
+      }
     } finally { setLoadingDetail(false); }
   };
   const closeModal = () => { setModal(null); setSelected(null); };
+
+  const asignarTrabajador = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selected || !asignandoTrabajadorId) return;
+    setAsignando(true);
+    try {
+      await asignacionesIncidenciaApi.create(selected.id, asignandoTrabajadorId);
+      setAsignandoTrabajadorId('');
+      setAsignados(await asignacionesIncidenciaApi.getByIncidencia(selected.id));
+    } finally { setAsignando(false); }
+  };
+
+  const quitarTrabajador = async (asignacionId: string) => {
+    if (!selected) return;
+    await asignacionesIncidenciaApi.remove(asignacionId);
+    setAsignados(await asignacionesIncidenciaApi.getByIncidencia(selected.id));
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta incidencia?')) return;
@@ -329,7 +356,7 @@ export default function IncidentsPage() {
               <p className="text-sm text-slate-600">{selected.descripcion}</p>
             )}
             <div className="flex gap-1 border-b border-slate-100">
-              {(['comentarios', 'archivos'] as const).map((tab) => (
+              {(['comentarios', 'archivos', 'asignados'] as const).map((tab) => (
                 <button key={tab} onClick={() => setDetailTab(tab)}
                   className={[
                     'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
@@ -338,10 +365,9 @@ export default function IncidentsPage() {
                       : 'border-transparent text-slate-500 hover:text-slate-800',
                   ].join(' ')}
                 >
-                  {tab === 'comentarios'
-                    ? <><MessageSquare className="w-3.5 h-3.5" /> Comentarios {comentarios.length > 0 && `(${comentarios.length})`}</>
-                    : <><Paperclip className="w-3.5 h-3.5" /> Archivos {archivos.length > 0 && `(${archivos.length})`}</>
-                  }
+                  {tab === 'comentarios' && <><MessageSquare className="w-3.5 h-3.5" /> Comentarios {comentarios.length > 0 && `(${comentarios.length})`}</>}
+                  {tab === 'archivos'    && <><Paperclip className="w-3.5 h-3.5" /> Archivos {archivos.length > 0 && `(${archivos.length})`}</>}
+                  {tab === 'asignados'   && <><Users className="w-3.5 h-3.5" /> Asignados {asignados.length > 0 && `(${asignados.length})`}</>}
                 </button>
               ))}
             </div>
@@ -439,6 +465,53 @@ export default function IncidentsPage() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                )}
+
+                {detailTab === 'asignados' && (
+                  <div className="space-y-3">
+                    {asignados.length === 0
+                      ? <p className="text-sm text-slate-400 text-center py-4">Nadie asignado a esta incidencia</p>
+                      : (
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {asignados.map((a) => (
+                            <div key={a.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {a.trabajador?.fotoUrl ? (
+                                  <img src={a.trabajador.fotoUrl} alt={a.trabajador.nombre} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                                    {(a.trabajador?.nombre?.[0] ?? '?').toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="text-sm text-slate-800 truncate">{a.trabajador?.nombre ?? 'Trabajador'}</span>
+                              </div>
+                              {isAdmin && (
+                                <button onClick={() => quitarTrabajador(a.id)}
+                                  className="p-1 rounded text-slate-300 hover:text-red-500 transition-colors shrink-0">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    {isAdmin && (
+                      <form onSubmit={asignarTrabajador} className="flex gap-2 pt-1 border-t border-slate-100">
+                        <select className="input flex-1 text-sm" value={asignandoTrabajadorId}
+                          onChange={(e) => setAsignandoTrabajadorId(e.target.value)} required>
+                          <option value="">Seleccionar trabajador…</option>
+                          {trabajadores
+                            .filter((t) => !asignados.some((a) => a.trabajadorId === t.id))
+                            .map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                        </select>
+                        <button type="submit" disabled={asignando || !asignandoTrabajadorId}
+                          className="btn-primary px-3 py-2 text-sm shrink-0">
+                          {asignando ? 'Asignando…' : 'Asignar'}
+                        </button>
+                      </form>
+                    )}
                   </div>
                 )}
               </>

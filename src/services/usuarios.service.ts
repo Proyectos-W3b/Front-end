@@ -1,13 +1,13 @@
 import { usuariosApi, rolesApi } from './api.service';
 import type { User } from '../types';
 
-export interface CreateTrabajadorData {
+export interface CreateUsuarioData {
   nombre: string;
   correo: string;
   contrasena: string;
 }
 
-const trabajadoresService = {
+const usuariosService = {
   async getAll(): Promise<User[]> {
     return usuariosApi.getAll();
   },
@@ -20,7 +20,7 @@ const trabajadoresService = {
     return rolesApi.getAll();
   },
 
-  async create(data: CreateTrabajadorData & { rolId: string }): Promise<User> {
+  async create(data: CreateUsuarioData & { rolId: string }): Promise<User> {
     return usuariosApi.create(data);
   },
 
@@ -33,4 +33,4 @@ const trabajadoresService = {
   },
 };
 
-export default trabajadoresService;
+export default usuariosService;

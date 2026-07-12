@@ -1,6 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FileText, RefreshCw, Paperclip, Trash2, ExternalLink, Plus, Eye, MessageSquare, Send, Clock, AlertTriangle, CircleCheck, ListChecks } from 'lucide-react';
+import { FileText, RefreshCw, Paperclip, Trash2, ExternalLink, Plus, Eye, MessageSquare, Send, Clock, AlertTriangle, CircleCheck, ListChecks, Users } from 'lucide-react';
 import projectsService from '../../services/projects.service';
 import incidentsService, { CreateIncidenciaData } from '../../services/incidents.service';
 import actualizacionesService, { CreateActualizacionData, UpdateActualizacionData } from '../../services/actualizaciones.service';
@@ -8,7 +8,7 @@ import archivosProyectoService, { CreateArchivoProyectoData } from '../../servic
 import comentariosService from '../../services/comentarios.service';
 import archivosIncidenciaService, { CreateArchivoIncidenciaData } from '../../services/archivos-incidencia.service';
 import fasesService from '../../services/fases.service';
-import { uploadsApi } from '../../services/api.service';
+import { uploadsApi, asignacionesTrabajadorApi, asignacionesIncidenciaApi, usuariosApi } from '../../services/api.service';
 import { inferirTipoArchivo } from '../../lib/fileType';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -18,16 +18,17 @@ import { FullPageSpinner } from '../../components/ui/Spinner';
 import ProgressBar from '../../components/ui/ProgressBar';
 import Sparkline from '../../components/ui/Sparkline';
 import PhaseTracker from '../../components/ui/PhaseTracker';
+import PercentageSlider from '../../components/ui/PercentageSlider';
 import { useAuthStore } from '../../store/auth.store';
 import { extractIdMatcher } from '../../lib/slug';
 import type {
   Project, Incidencia, Prioridad, EstadoIncidencia,
   ActualizacionProyecto, ArchivoProyecto, Fase, EstadoFase,
-  ComentarioIncidencia, ArchivoIncidencia,
+  ComentarioIncidencia, ArchivoIncidencia, AsignacionTrabajador, AsignacionIncidencia, User,
 } from '../../types';
 
-type Tab = 'fases' | 'incidencias' | 'actualizaciones' | 'archivos';
-type DetailTab = 'comentarios' | 'archivos';
+type Tab = 'fases' | 'incidencias' | 'actualizaciones' | 'archivos' | 'equipo';
+type DetailTab = 'comentarios' | 'archivos' | 'asignados';
 
 const EMPTY_INC: CreateIncidenciaData = {
   titulo: '', descripcion: '', proyectoId: '', clienteId: '', reportadoPorId: '', prioridad: 'media', estado: 'abierta',
@@ -59,6 +60,10 @@ export default function ProjectDetailPage() {
   const [actualizaciones, setActualizaciones] = useState<ActualizacionProyecto[]>([]);
   const [archivos,      setArchivos]      = useState<ArchivoProyecto[]>([]);
   const [fases,         setFases]         = useState<Fase[]>([]);
+  const [equipo,        setEquipo]        = useState<AsignacionTrabajador[]>([]);
+  const [trabajadores,  setTrabajadores]  = useState<User[]>([]);
+  const [asignandoTrabajadorId, setAsignandoTrabajadorId] = useState('');
+  const [asignando,     setAsignando]     = useState(false);
   const [loading,       setLoading]       = useState(true);
   const [tab,           setTab]           = useState<Tab>('fases');
   const [tabLoaded,     setTabLoaded]     = useState<Set<Tab>>(new Set(['fases', 'incidencias', 'actualizaciones']));
@@ -78,6 +83,9 @@ export default function ProjectDetailPage() {
   /* ── Incident detail (comentarios / archivos) ── */
   const [comentarios,    setComentarios]    = useState<ComentarioIncidencia[]>([]);
   const [incArchivos,    setIncArchivos]    = useState<ArchivoIncidencia[]>([]);
+  const [incAsignados,   setIncAsignados]   = useState<AsignacionIncidencia[]>([]);
+  const [asignandoIncTrabajadorId, setAsignandoIncTrabajadorId] = useState('');
+  const [asignandoInc,   setAsignandoInc]   = useState(false);
   const [loadingDetail,  setLoadingDetail]  = useState(false);
   const [detailTab,      setDetailTab]      = useState<DetailTab>('comentarios');
   const [newComment,     setNewComment]     = useState('');
@@ -127,6 +135,17 @@ export default function ProjectDetailPage() {
     setArchivos(await archivosProyectoService.getByProyecto(id));
   };
 
+  const loadEquipo = async () => {
+    if (!id) return;
+    setEquipo(await asignacionesTrabajadorApi.getByProyecto(id));
+  };
+
+  const loadTrabajadores = async () => {
+    if (trabajadores.length > 0) return;
+    const usuarios = await usuariosApi.getAll();
+    setTrabajadores(usuarios.filter((u) => u.rol === 'trabajador'));
+  };
+
   useEffect(() => {
     if (!slug) return;
     const matcher = extractIdMatcher(slug);
@@ -152,7 +171,25 @@ export default function ProjectDetailPage() {
       setTabLoaded((prev) => new Set(prev).add(t));
       if (t === 'actualizaciones') loadActualizaciones();
       if (t === 'archivos')        loadArchivos();
+      if (t === 'equipo')          { loadEquipo(); loadTrabajadores(); }
     }
+  };
+
+  const asignarTrabajador = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!id || !asignandoTrabajadorId) return;
+    setAsignando(true);
+    try {
+      await asignacionesTrabajadorApi.create(id, asignandoTrabajadorId);
+      setAsignandoTrabajadorId('');
+      await loadEquipo();
+    } catch (err: any) { setError(err?.message ?? 'Error al asignar trabajador'); }
+    finally { setAsignando(false); }
+  };
+
+  const quitarTrabajador = async (asignacionId: string) => {
+    await asignacionesTrabajadorApi.remove(asignacionId);
+    loadEquipo();
   };
 
   const closeModal = () => { setModal(null); setSelectedInc(null); setSelectedAct(null); setError(''); };
@@ -188,13 +225,33 @@ export default function ProjectDetailPage() {
     setModal('incDetail');
     setLoadingDetail(true);
     try {
-      const [c, a] = await Promise.all([
+      const [c, a, asig] = await Promise.all([
         comentariosService.getByIncidencia(inc.id),
         archivosIncidenciaService.getByIncidencia(inc.id),
+        asignacionesIncidenciaApi.getByIncidencia(inc.id),
       ]);
       setComentarios(c);
       setIncArchivos(a);
+      setIncAsignados(asig);
+      loadTrabajadores();
     } finally { setLoadingDetail(false); }
+  };
+
+  const asignarIncTrabajador = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedInc || !asignandoIncTrabajadorId) return;
+    setAsignandoInc(true);
+    try {
+      await asignacionesIncidenciaApi.create(selectedInc.id, asignandoIncTrabajadorId);
+      setAsignandoIncTrabajadorId('');
+      setIncAsignados(await asignacionesIncidenciaApi.getByIncidencia(selectedInc.id));
+    } finally { setAsignandoInc(false); }
+  };
+
+  const quitarIncTrabajador = async (asignacionId: string) => {
+    if (!selectedInc) return;
+    await asignacionesIncidenciaApi.remove(asignacionId);
+    setIncAsignados(await asignacionesIncidenciaApi.getByIncidencia(selectedInc.id));
   };
   const sendComment = async (e: FormEvent) => {
     e.preventDefault();
@@ -340,6 +397,7 @@ export default function ProjectDetailPage() {
     { key: 'incidencias',    label: `Incidencias (${incidents.length})`,            icon: FileText  },
     { key: 'actualizaciones',label: `Actualizaciones (${actualizaciones.length})`,  icon: RefreshCw },
     { key: 'archivos',       label: `Archivos (${archivos.length})`,                icon: Paperclip },
+    { key: 'equipo',         label: `Equipo (${equipo.length})`,                    icon: Users     },
   ];
 
   const actualizacionesOrdenadas = [...actualizaciones].sort(
@@ -646,6 +704,59 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
+      {/* ── Tab: Equipo ── */}
+      {tab === 'equipo' && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Equipo asignado</h3>
+
+          {equipo.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 py-10 text-center">
+              <Users className="w-7 h-7 text-slate-200 mx-auto mb-2" />
+              <p className="text-sm text-slate-400">Aún no hay trabajadores asignados a este proyecto</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {equipo.map((a) => (
+                <div key={a.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-4 py-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {a.trabajador?.fotoUrl ? (
+                      <img src={a.trabajador.fotoUrl} alt={a.trabajador.nombre} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {(a.trabajador?.nombre?.[0] ?? '?').toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-slate-800 truncate">{a.trabajador?.nombre ?? 'Trabajador'}</span>
+                  </div>
+                  {isAdmin && (
+                    <button onClick={() => quitarTrabajador(a.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                      title="Quitar del proyecto">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isAdmin && (
+            <form onSubmit={asignarTrabajador} className="flex gap-2 pt-2 border-t border-slate-100">
+              <select className="input flex-1 text-sm" value={asignandoTrabajadorId}
+                onChange={(e) => setAsignandoTrabajadorId(e.target.value)} required>
+                <option value="">Seleccionar trabajador…</option>
+                {trabajadores
+                  .filter((t) => !equipo.some((a) => a.trabajadorId === t.id))
+                  .map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
+              <button type="submit" disabled={asignando || !asignandoTrabajadorId} className="btn-primary btn-sm shrink-0">
+                {asignando ? 'Asignando…' : 'Asignar'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
       {/* ── Modal: Nueva fase ── */}
       <Modal open={modal === 'createFase'} onClose={closeModal} title="Nueva fase"
         description="Agrega una etapa al flujo de este proyecto.">
@@ -749,7 +860,7 @@ export default function ProjectDetailPage() {
               <p className="text-sm text-slate-600">{selectedInc.descripcion}</p>
             )}
             <div className="flex gap-1 border-b border-slate-100">
-              {(['comentarios', 'archivos'] as const).map((t) => (
+              {(['comentarios', 'archivos', 'asignados'] as const).map((t) => (
                 <button key={t} onClick={() => setDetailTab(t)}
                   className={[
                     'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
@@ -758,10 +869,9 @@ export default function ProjectDetailPage() {
                       : 'border-transparent text-slate-500 hover:text-slate-800',
                   ].join(' ')}
                 >
-                  {t === 'comentarios'
-                    ? <><MessageSquare className="w-3.5 h-3.5" /> Comentarios {comentarios.length > 0 && `(${comentarios.length})`}</>
-                    : <><Paperclip className="w-3.5 h-3.5" /> Archivos {incArchivos.length > 0 && `(${incArchivos.length})`}</>
-                  }
+                  {t === 'comentarios' && <><MessageSquare className="w-3.5 h-3.5" /> Comentarios {comentarios.length > 0 && `(${comentarios.length})`}</>}
+                  {t === 'archivos'    && <><Paperclip className="w-3.5 h-3.5" /> Archivos {incArchivos.length > 0 && `(${incArchivos.length})`}</>}
+                  {t === 'asignados'   && <><Users className="w-3.5 h-3.5" /> Asignados {incAsignados.length > 0 && `(${incAsignados.length})`}</>}
                 </button>
               ))}
             </div>
@@ -861,6 +971,53 @@ export default function ProjectDetailPage() {
                     </form>
                   </div>
                 )}
+
+                {detailTab === 'asignados' && (
+                  <div className="space-y-3">
+                    {incAsignados.length === 0
+                      ? <p className="text-sm text-slate-400 text-center py-4">Nadie asignado a esta incidencia</p>
+                      : (
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {incAsignados.map((a) => (
+                            <div key={a.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {a.trabajador?.fotoUrl ? (
+                                  <img src={a.trabajador.fotoUrl} alt={a.trabajador.nombre} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                                    {(a.trabajador?.nombre?.[0] ?? '?').toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="text-sm text-slate-800 truncate">{a.trabajador?.nombre ?? 'Trabajador'}</span>
+                              </div>
+                              {isAdmin && (
+                                <button onClick={() => quitarIncTrabajador(a.id)}
+                                  className="p-1 rounded text-slate-300 hover:text-red-500 transition-colors shrink-0">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    {isAdmin && (
+                      <form onSubmit={asignarIncTrabajador} className="flex gap-2 pt-1 border-t border-slate-100">
+                        <select className="input flex-1 text-sm" value={asignandoIncTrabajadorId}
+                          onChange={(e) => setAsignandoIncTrabajadorId(e.target.value)} required>
+                          <option value="">Seleccionar trabajador…</option>
+                          {trabajadores
+                            .filter((t) => !incAsignados.some((a) => a.trabajadorId === t.id))
+                            .map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                        </select>
+                        <button type="submit" disabled={asignandoInc || !asignandoIncTrabajadorId}
+                          className="btn-primary px-3 py-2 text-sm shrink-0">
+                          {asignandoInc ? 'Asignando…' : 'Asignar'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -869,26 +1026,33 @@ export default function ProjectDetailPage() {
 
       {/* ── Modal: Actualización ── */}
       <Modal open={modal === 'createAct' || modal === 'editAct'} onClose={closeModal}
-        title={modal === 'createAct' ? 'Nueva actualización' : 'Editar actualización'}>
-        <form onSubmit={saveAct} className="space-y-4">
+        title={modal === 'createAct' ? 'Nueva actualización' : 'Editar actualización'}
+        description="Registra un avance del proyecto para que el cliente lo vea reflejado.">
+        <form onSubmit={saveAct} className="space-y-5">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>}
-          <div>
-            <label className="label">Título *</label>
-            <input className="input" value={actForm.titulo}
-              onChange={(e) => setActForm({ ...actForm, titulo: e.target.value })} required />
+
+          <div className="space-y-4">
+            <div>
+              <label className="label">Título *</label>
+              <input className="input" placeholder="Ej: Avance de diseño" value={actForm.titulo}
+                onChange={(e) => setActForm({ ...actForm, titulo: e.target.value })} required />
+            </div>
+            <div>
+              <label className="label">Descripción *</label>
+              <textarea className="input resize-none" rows={3} placeholder="Cuéntale al cliente qué se hizo…"
+                value={actForm.descripcion}
+                onChange={(e) => setActForm({ ...actForm, descripcion: e.target.value })} required />
+            </div>
           </div>
-          <div>
-            <label className="label">Descripción *</label>
-            <textarea className="input resize-none" rows={3} value={actForm.descripcion}
-              onChange={(e) => setActForm({ ...actForm, descripcion: e.target.value })} required />
+
+          <div className="bg-slate-50 rounded-xl p-4">
+            <PercentageSlider
+              value={actForm.porcentajeAvance}
+              onChange={(v) => setActForm({ ...actForm, porcentajeAvance: v })}
+            />
           </div>
-          <div>
-            <label className="label">Porcentaje de avance: {actForm.porcentajeAvance}%</label>
-            <input type="range" min={0} max={100} className="w-full accent-blue-600" value={actForm.porcentajeAvance}
-              onChange={(e) => setActForm({ ...actForm, porcentajeAvance: Number(e.target.value) })} />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1"><span>0%</span><span>100%</span></div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
+
+          <div className="flex justify-end gap-3 pt-1">
             <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
             <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
           </div>

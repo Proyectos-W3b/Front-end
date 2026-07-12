@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FolderOpen, AlertTriangle,
-  Users, Globe, HardHat, MessageSquare, UserCircle,
+  Users, Globe, HardHat, MessageSquare, UserCircle, UserCog,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -45,6 +45,23 @@ export const moduleCategories: ModuleCategory[] = [
     roles: ['admin'],
     modules: [
       { id: 'trabajadores', name: 'Trabajadores', path: '/trabajadores', icon: HardHat, roles: ['admin'] },
+    ],
+  },
+  {
+    id: 'administracion', title: 'Administración', icon: UserCog,
+    roles: ['admin'],
+    modules: [
+      { id: 'usuarios', name: 'Usuarios', path: '/usuarios', icon: UserCog, roles: ['admin'] },
+    ],
+  },
+
+  // ── Vista trabajador ───────────────────────────────────────────────────────
+  {
+    id: 'trabajador-general', title: 'General', icon: Globe,
+    roles: ['trabajador'],
+    modules: [
+      { id: 'projects',  name: 'Mis Proyectos',   path: '/projects',  icon: FolderOpen,    roles: ['trabajador'] },
+      { id: 'incidents', name: 'Mis Incidencias', path: '/incidents', icon: AlertTriangle, roles: ['trabajador'] },
     ],
   },
 
