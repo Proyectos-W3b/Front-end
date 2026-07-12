@@ -6,6 +6,28 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Tokens de color para componentes shadcn (Button, Message*, etc.) — alineados
+       con la paleta azul/slate que ya usa el resto de la app. */
+    --background:         #ffffff;
+    --foreground:         #0f172a;
+    --border:             #e2e8f0;
+    --input:              #e2e8f0;
+    --ring:               #3b82f6;
+    --primary:            #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary:          #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted:              #f1f5f9;
+    --muted-foreground:   #64748b;
+    --accent:             #f1f5f9;
+    --accent-foreground:  #0f172a;
+    --destructive:        #dc2626;
+    --card:               #ffffff;
+    --card-foreground:    #0f172a;
+    --popover:            #ffffff;
+    --popover-foreground: #0f172a;
+  }
   body {
     @apply antialiased bg-slate-50 text-slate-900;
     font-family: 'Roboto', sans-serif;

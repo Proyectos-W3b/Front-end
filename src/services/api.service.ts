@@ -18,6 +18,7 @@ import type {
   Fase,
   ArchivoIncidencia,
   ComentarioIncidencia,
+  Mensaje,
 } from '../types';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ function normalizeUsuario(raw: any): User {
     correo: typeof raw.correo === 'string' ? raw.correo : (raw.correo?.correo ?? ''),
     rol:    typeof raw.rol    === 'string' ? raw.rol    : (raw.rol?.nombre    ?? ''),
     rolId:  typeof raw.rol    === 'object' ? (raw.rol?.idRol ?? '') : '',
+    fotoUrl: raw.fotoUrl,
   };
 }
 
@@ -62,7 +64,7 @@ export const usuariosApi = {
     return normalizeUsuario(data);
   },
 
-  async update(id: string, payload: Partial<{ nombre: string; correo: string; contrasena: string; rolId: string }>): Promise<User> {
+  async update(id: string, payload: Partial<{ nombre: string; correo: string; contrasena: string; rolId: string; fotoUrl: string }>): Promise<User> {
     const { data } = await api.patch(`/usuarios/${id}`, payload);
     return normalizeUsuario(data);
   },
@@ -337,5 +339,44 @@ export const comentariosApi = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/comentarios-incidencias/${id}`);
+  },
+};
+
+// ── Uploads (Google Cloud Storage) ─────────────────────────────────────────────
+export type CarpetaGCS = 'chat' | 'perfiles' | 'proyectos' | 'incidencias';
+
+export const uploadsApi = {
+  async getSignedUploadUrl(
+    nombre: string,
+    contentType: string,
+    carpeta: CarpetaGCS = 'chat',
+  ): Promise<{ uploadUrl: string; objectPath: string }> {
+    const { data } = await api.post('/uploads/signed-url', { nombre, contentType, carpeta });
+    return data;
+  },
+
+  /** Sube un archivo directo a GCS vía URL firmada y devuelve el objectPath a persistir. */
+  async subirArchivo(file: File, carpeta: CarpetaGCS): Promise<string> {
+    const contentType = file.type || 'application/octet-stream';
+    const { uploadUrl, objectPath } = await this.getSignedUploadUrl(file.name, contentType, carpeta);
+    await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: file });
+    return objectPath;
+  },
+};
+
+// ── Mensajes (chat cliente ↔ admin) ────────────────────────────────────────────
+export const mensajesApi = {
+  async getAll(): Promise<Mensaje[]> {
+    const { data } = await api.get('/mensajes');
+    return Array.isArray(data) ? data : data.data ?? [];
+  },
+
+  async getByCliente(clienteId: string): Promise<Mensaje[]> {
+    const { data } = await api.get(`/mensajes/cliente/${clienteId}`);
+    return Array.isArray(data) ? data : data.data ?? [];
+  },
+
+  async marcarLeidos(clienteId: string): Promise<void> {
+    await api.patch(`/mensajes/cliente/${clienteId}/leer`);
   },
 };

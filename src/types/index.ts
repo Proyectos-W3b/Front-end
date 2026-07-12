@@ -7,6 +7,7 @@ export interface User {
   correo: string;
   rol: string;
   rolId?: string;
+  fotoUrl?: string;
 }
 
 export interface AuthResponse {
@@ -89,6 +90,25 @@ export interface Fase {
   nombre: string;
   orden: number;
   estado: EstadoFase;
+}
+
+// ─── Mensajes (chat cliente ↔ admin) ──────────────────────────────────────────
+export type AutorRol = 'admin' | 'cliente';
+export type TipoArchivo = 'imagen' | 'pdf' | 'word' | 'excel' | 'otro';
+
+export interface Mensaje {
+  id: string;
+  clienteId: string;
+  autorRol: AutorRol;
+  autorId: string;
+  autorNombre: string;
+  autorFotoUrl?: string;
+  contenido: string;
+  archivoUrl?: string;
+  archivoNombre?: string;
+  archivoTipo?: TipoArchivo;
+  leido: boolean;
+  fecha: string;
 }
 
 // ─── Comentarios de incidencia ────────────────────────────────────────────────

@@ -8,6 +8,8 @@ import archivosProyectoService, { CreateArchivoProyectoData } from '../../servic
 import comentariosService from '../../services/comentarios.service';
 import archivosIncidenciaService, { CreateArchivoIncidenciaData } from '../../services/archivos-incidencia.service';
 import fasesService from '../../services/fases.service';
+import { uploadsApi } from '../../services/api.service';
+import { inferirTipoArchivo } from '../../lib/fileType';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import DataTable from '../../components/ui/DataTable';
@@ -68,6 +70,7 @@ export default function ProjectDetailPage() {
   const [incForm,  setIncForm]  = useState<CreateIncidenciaData>(EMPTY_INC);
   const [actForm,  setActForm]  = useState<CreateActualizacionData>(EMPTY_ACT);
   const [arcForm,  setArcForm]  = useState<CreateArchivoProyectoData>(EMPTY_ARC);
+  const [subiendoArc, setSubiendoArc] = useState(false);
   const [faseNombre, setFaseNombre] = useState('');
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
@@ -81,6 +84,7 @@ export default function ProjectDetailPage() {
   const [sendingComment, setSendingComment] = useState(false);
   const [incArcForm,     setIncArcForm]     = useState<CreateArchivoIncidenciaData>(EMPTY_INC_ARC);
   const [savingIncArc,   setSavingIncArc]   = useState(false);
+  const [subiendoIncArc, setSubiendoIncArc] = useState(false);
 
   const loadProject = async () => {
     if (!id) return;
@@ -222,6 +226,17 @@ export default function ProjectDetailPage() {
     await archivosIncidenciaService.remove(arcId);
     setIncArchivos(await archivosIncidenciaService.getByIncidencia(selectedInc.id));
   };
+  const handleIncArcFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoIncArc(true);
+    try {
+      const objectPath = await uploadsApi.subirArchivo(file, 'incidencias');
+      setIncArcForm((f) => ({ ...f, url: objectPath, nombre: f.nombre || file.name, tipo: inferirTipoArchivo(file) }));
+    } finally {
+      setSubiendoIncArc(false);
+    }
+  };
 
   /* ── Actualizacion handlers ── */
   const openCreateAct = () => { setActForm({ ...EMPTY_ACT, proyectoId: id! }); setError(''); setModal('createAct'); };
@@ -257,6 +272,17 @@ export default function ProjectDetailPage() {
       closeModal(); loadArchivos();
     } catch (err: any) { setError(err?.message ?? 'Error al guardar archivo'); }
     finally { setSaving(false); }
+  };
+  const handleArcFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoArc(true);
+    try {
+      const objectPath = await uploadsApi.subirArchivo(file, 'proyectos');
+      setArcForm((f) => ({ ...f, url: objectPath, nombre: f.nombre || file.name, tipo: inferirTipoArchivo(file) }));
+    } finally {
+      setSubiendoArc(false);
+    }
   };
   const deleteArc = async (arcId: string) => {
     if (!confirm('¿Eliminar este archivo?')) return;
@@ -825,12 +851,11 @@ export default function ProjectDetailPage() {
                           <option value="otro">Otro</option>
                         </select>
                       </div>
-                      <div className="flex gap-2">
-                        <input className="input flex-1 text-sm" placeholder="URL del archivo (https://…)"
-                          value={incArcForm.url} onChange={(e) => setIncArcForm({ ...incArcForm, url: e.target.value })} required />
-                        <button type="submit" disabled={savingIncArc}
+                      <div className="flex gap-2 items-center">
+                        <input type="file" className="input flex-1 text-sm" onChange={handleIncArcFile} disabled={subiendoIncArc} />
+                        <button type="submit" disabled={savingIncArc || subiendoIncArc || !incArcForm.url}
                           className="btn-primary px-3 py-2 text-sm shrink-0">
-                          {savingIncArc ? 'Guardando…' : 'Adjuntar'}
+                          {subiendoIncArc ? 'Subiendo…' : savingIncArc ? 'Guardando…' : 'Adjuntar'}
                         </button>
                       </div>
                     </form>
@@ -880,9 +905,10 @@ export default function ProjectDetailPage() {
               onChange={(e) => setArcForm({ ...arcForm, nombre: e.target.value })} required />
           </div>
           <div>
-            <label className="label">URL / Enlace *</label>
-            <input className="input" placeholder="https://..." value={arcForm.url}
-              onChange={(e) => setArcForm({ ...arcForm, url: e.target.value })} required />
+            <label className="label">Archivo *</label>
+            <input type="file" className="input" onChange={handleArcFile} disabled={subiendoArc} />
+            {subiendoArc && <p className="text-xs text-slate-400 mt-1">Subiendo…</p>}
+            {arcForm.url && !subiendoArc && <p className="text-xs text-emerald-600 mt-1">Archivo listo ✓</p>}
           </div>
           <div>
             <label className="label">Tipo</label>
@@ -897,7 +923,7 @@ export default function ProjectDetailPage() {
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>
-            <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
+            <button type="submit" className="btn-primary" disabled={saving || subiendoArc || !arcForm.url}>{saving ? 'Guardando…' : 'Guardar'}</button>
           </div>
         </form>
       </Modal>

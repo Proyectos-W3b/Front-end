@@ -59,6 +59,13 @@ export const moduleCategories: ModuleCategory[] = [
     ],
   },
   {
+    id: 'cliente-mensajes', title: 'Mensajes', icon: MessageSquare,
+    roles: ['cliente'],
+    modules: [
+      { id: 'chat', name: 'Chat', path: '/clientes/chat', icon: MessageSquare, roles: ['cliente'] },
+    ],
+  },
+  {
     id: 'cliente-perfil', title: 'Mi Cuenta', icon: UserCircle,
     roles: ['cliente'],
     modules: [

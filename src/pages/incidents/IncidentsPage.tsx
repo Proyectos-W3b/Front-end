@@ -5,6 +5,8 @@ import projectsService from '../../services/projects.service';
 import clientesService from '../../services/clientes.service';
 import comentariosService from '../../services/comentarios.service';
 import archivosIncidenciaService, { CreateArchivoIncidenciaData } from '../../services/archivos-incidencia.service';
+import { uploadsApi } from '../../services/api.service';
+import { inferirTipoArchivo } from '../../lib/fileType';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import KanbanBoard, { type KanbanColumn } from '../../components/ui/KanbanBoard';
@@ -77,6 +79,7 @@ export default function IncidentsPage() {
   const [sendingComment, setSendingComment] = useState(false);
   const [arcForm,        setArcForm]        = useState<CreateArchivoIncidenciaData>(EMPTY_ARC);
   const [savingArc,      setSavingArc]      = useState(false);
+  const [subiendoArc,    setSubiendoArc]    = useState(false);
   const [detailTab,      setDetailTab]      = useState<'comentarios' | 'archivos'>('comentarios');
 
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -189,6 +192,17 @@ export default function IncidentsPage() {
       setArchivos(fresh);
       setArchivoCounts((prev) => ({ ...prev, [selected.id]: fresh.length }));
     } finally { setSavingArc(false); }
+  };
+  const handleArcFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoArc(true);
+    try {
+      const objectPath = await uploadsApi.subirArchivo(file, 'incidencias');
+      setArcForm((f) => ({ ...f, url: objectPath, nombre: f.nombre || file.name, tipo: inferirTipoArchivo(file) }));
+    } finally {
+      setSubiendoArc(false);
+    }
   };
 
   const deleteArc = async (id: string) => {
@@ -417,12 +431,11 @@ export default function IncidentsPage() {
                           <option value="otro">Otro</option>
                         </select>
                       </div>
-                      <div className="flex gap-2">
-                        <input className="input flex-1 text-sm" placeholder="URL del archivo (https://…)"
-                          value={arcForm.url} onChange={(e) => setArcForm({ ...arcForm, url: e.target.value })} required />
-                        <button type="submit" disabled={savingArc}
+                      <div className="flex gap-2 items-center">
+                        <input type="file" className="input flex-1 text-sm" onChange={handleArcFile} disabled={subiendoArc} />
+                        <button type="submit" disabled={savingArc || subiendoArc || !arcForm.url}
                           className="btn-primary px-3 py-2 text-sm shrink-0">
-                          {savingArc ? 'Guardando…' : 'Adjuntar'}
+                          {subiendoArc ? 'Subiendo…' : savingArc ? 'Guardando…' : 'Adjuntar'}
                         </button>
                       </div>
                     </form>

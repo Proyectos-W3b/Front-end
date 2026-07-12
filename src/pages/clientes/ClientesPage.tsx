@@ -2,7 +2,7 @@ import { useEffect, useState, FormEvent, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Phone, MapPin, UserCheck, UserX, Plus, Pencil, Trash2, Camera, Eye } from 'lucide-react';
 import clientesService, { UpdateClienteData } from '../../services/clientes.service';
-import { usuariosApi, rolesApi } from '../../services/api.service';
+import { usuariosApi, rolesApi, uploadsApi } from '../../services/api.service';
 import Modal from '../../components/ui/Modal';
 import DataTable, { type DataTableColumn } from '../../components/ui/DataTable';
 import { FullPageSpinner } from '../../components/ui/Spinner';
@@ -112,24 +112,23 @@ export default function ClientesPage() {
   };
 
   // ── Estado edición perfil (vista cliente) ─────────────────────────────
-  const fotoKey = `foto_perfil_${user?.id}`;
-  const [foto,         setFoto]         = useState<string>(() => localStorage.getItem(fotoKey) ?? '');
   const [editNombre,   setEditNombre]   = useState(false);
   const [nuevoNombre,  setNuevoNombre]  = useState(user?.nombre ?? '');
   const [savingNombre, setSavingNombre] = useState(false);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      localStorage.setItem(fotoKey, base64);
-      setFoto(base64);
-      window.dispatchEvent(new Event('foto-perfil-updated'));
-    };
-    reader.readAsDataURL(file);
+    if (!file || !user) return;
+    setSubiendoFoto(true);
+    try {
+      const objectPath = await uploadsApi.subirArchivo(file, 'perfiles');
+      const updated = await usuariosApi.update(user.id, { fotoUrl: objectPath });
+      setAuth({ ...user, fotoUrl: updated.fotoUrl }, token!);
+    } finally {
+      setSubiendoFoto(false);
+    }
   };
 
   const handleGuardarNombre = async () => {
@@ -157,8 +156,8 @@ export default function ClientesPage() {
           {/* Avatar + foto */}
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
-              {foto ? (
-                <img src={foto} alt="foto" className="w-16 h-16 rounded-full object-cover ring-2 ring-blue-100" />
+              {user?.fotoUrl ? (
+                <img src={user.fotoUrl} alt="foto" className="w-16 h-16 rounded-full object-cover ring-2 ring-blue-100" />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
                   {user?.nombre?.[0]?.toUpperCase()}
@@ -166,7 +165,8 @@ export default function ClientesPage() {
               )}
               <button
                 onClick={() => fileRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center hover:bg-slate-50"
+                disabled={subiendoFoto}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center hover:bg-slate-50 disabled:opacity-50"
                 title="Cambiar foto"
               >
                 <Camera className="w-3 h-3 text-slate-500" />

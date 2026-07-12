@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
@@ -15,16 +15,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const userRole = user?.rol ?? '';
-  const [fotoPerfil, setFotoPerfil] = useState(() =>
-    user?.id ? (localStorage.getItem(`foto_perfil_${user.id}`) ?? '') : '',
-  );
-
-  useEffect(() => {
-    const handler = () =>
-      setFotoPerfil(user?.id ? (localStorage.getItem(`foto_perfil_${user.id}`) ?? '') : '');
-    window.addEventListener('foto-perfil-updated', handler);
-    return () => window.removeEventListener('foto-perfil-updated', handler);
-  }, [user?.id]);
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [tooltip,   setTooltip]   = useState<Tooltip | null>(null);
@@ -202,8 +192,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Tarjeta de usuario — solo en modo abierto */}
           {isOpen && user && (
             <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-gray-50 mb-1">
-              {fotoPerfil ? (
-                <img src={fotoPerfil} alt="avatar" className="w-7 h-7 rounded-full object-cover shrink-0 shadow-sm" />
+              {user.fotoUrl ? (
+                <img src={user.fotoUrl} alt="avatar" className="w-7 h-7 rounded-full object-cover shrink-0 shadow-sm" />
               ) : (
                 <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm">
                   {user.nombre?.[0]?.toUpperCase()}
@@ -225,8 +215,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               onMouseLeave={hideTip}
               className="flex justify-center mb-1"
             >
-              {fotoPerfil ? (
-                <img src={fotoPerfil} alt="avatar" className="w-8 h-8 rounded-full object-cover shadow-sm" />
+              {user.fotoUrl ? (
+                <img src={user.fotoUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover shadow-sm" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                   {user.nombre?.[0]?.toUpperCase()}
