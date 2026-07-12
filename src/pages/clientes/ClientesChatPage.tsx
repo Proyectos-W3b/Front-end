@@ -173,7 +173,7 @@ export default function ClientesChatPage() {
     <>
       <MessageScroller className="flex-1">
         <MessageScrollerViewport>
-          <MessageScrollerContent className="px-5 py-5">
+          <MessageScrollerContent className="px-5 py-5 gap-3">
             {mensajes.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <p className="text-sm text-slate-400">Sin mensajes aún. ¡Inicia la conversación!</p>
@@ -221,10 +221,10 @@ export default function ClientesChatPage() {
                           )
                         )}
                         {msg.contenido && (
-                          <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed max-w-[80%] ${
+                          <div className={`w-fit px-4 py-2.5 rounded-2xl text-sm leading-relaxed max-w-[min(420px,80%)] ${
                             propio
-                              ? 'bg-blue-600 text-white rounded-tr-sm'
-                              : 'bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm'
+                              ? 'bg-blue-600 text-white rounded-br-sm'
+                              : 'bg-white border border-slate-100 text-slate-800 rounded-bl-sm shadow-sm'
                           }`}>
                             {msg.contenido}
                           </div>

@@ -35,7 +35,7 @@ function MessageAvatar({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="message-avatar"
       className={cn(
-        "flex w-fit min-w-8 shrink-0 items-center justify-center self-end overflow-hidden rounded-full bg-muted group-has-[[data-slot=message-footer]]/message:-translate-y-8",
+        "flex w-fit min-w-8 shrink-0 items-center justify-center self-end overflow-hidden rounded-full bg-muted group-has-[[data-slot=message-footer]]/message:-translate-y-5",
         className
       )}
       {...props}
@@ -48,7 +48,9 @@ function MessageContent({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="message-content"
       className={cn(
-        "flex w-full min-w-0 flex-col gap-2.5 break-words group-data-[align=end]/message:*:self-end",
+        // items-start evita que las burbujas se estiren al ancho completo:
+        // cada hijo mide lo que mide su contenido (hasta su max-width).
+        "flex w-full min-w-0 flex-col items-start gap-1 break-words group-data-[align=end]/message:*:self-end",
         className
       )}
       {...props}
@@ -74,7 +76,7 @@ function MessageFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="message-footer"
       className={cn(
-        "flex max-w-full min-w-0 items-center px-3 text-xs font-medium text-muted-foreground group-has-[[data-variant=ghost]]/message:px-0 group-data-[align=end]/message:justify-end",
+        "flex max-w-full min-w-0 items-center px-2 text-[10px] font-medium text-slate-400 group-has-[[data-variant=ghost]]/message:px-0 group-data-[align=end]/message:justify-end",
         className
       )}
       {...props}

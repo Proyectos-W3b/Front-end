@@ -28,6 +28,7 @@ export const moduleCategories: ModuleCategory[] = [
     id: 'general', title: 'General', icon: Globe,
     roles: ['admin'],
     modules: [
+      { id: 'dashboard', name: 'Dashboard',   path: '/dashboard', icon: LayoutDashboard, roles: ['admin'], exact: true },
       { id: 'projects',  name: 'Proyectos',   path: '/projects',  icon: FolderOpen,   roles: ['admin'] },
       { id: 'incidents', name: 'Incidencias', path: '/incidents', icon: AlertTriangle, roles: ['admin'] },
     ],
