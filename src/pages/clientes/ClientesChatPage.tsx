@@ -187,16 +187,16 @@ export default function ClientesChatPage() {
                       <MessageAvatar>
                         {propio ? (
                           user?.fotoUrl ? (
-                            <img src={user.fotoUrl} alt={user.nombre} className="w-full h-full object-cover" />
+                            <img src={user.fotoUrl} alt={user.nombre} className="w-8 h-8 shrink-0 rounded-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold bg-blue-600">
+                            <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white text-xs font-bold bg-blue-600">
                               {(user?.nombre?.[0] ?? '?').toUpperCase()}
                             </div>
                           )
                         ) : msg.autorFotoUrl ? (
-                          <img src={msg.autorFotoUrl} alt={msg.autorNombre} className="w-full h-full object-cover" />
+                          <img src={msg.autorFotoUrl} alt={msg.autorNombre} className="w-8 h-8 shrink-0 rounded-full object-cover" />
                         ) : (
-                          <div className={`w-full h-full flex items-center justify-center text-white text-xs font-bold ${colorFor(msg.autorId)}`}>
+                          <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white text-xs font-bold ${colorFor(msg.autorId)}`}>
                             {initialsFor(msg.autorNombre)}
                           </div>
                         )}
