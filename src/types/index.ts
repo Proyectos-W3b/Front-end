@@ -153,6 +153,54 @@ export interface AsignacionIncidencia {
   trabajador?: TrabajadorResumen;
 }
 
+// ─── RRHH ────────────────────────────────────────────────────────────────────
+export interface Departamento {
+  id: string;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface Cargo {
+  id: string;
+  title: string;
+  description?: string;
+  departmentId: string;
+  baseSalary?: number;
+  maxSalary?: number;
+  isActive?: boolean;
+}
+
+export type Genero = 'MASCULINO' | 'FEMENINO' | 'OTRO';
+export type TipoContrato = 'TIEMPO_COMPLETO' | 'MEDIO_TIEMPO' | 'CONTRATISTA' | 'PRACTICANTE';
+export type EstadoAsistencia = 'PRESENTE' | 'AUSENTE' | 'TARDE' | 'MEDIO_DIA' | 'FERIADO' | 'REMOTO';
+
+export interface Empleado {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  gender: Genero;
+  hireDate: string;
+  contractType: TipoContrato;
+  baseSalary: number;
+  departmentId: string;
+  positionId: string;
+  status: string;
+}
+
+export interface AsistenciaRecord {
+  id: string;
+  employeeId: string;
+  date: string;
+  status: EstadoAsistencia;
+  checkIn?: string;
+  checkOut?: string;
+  hoursWorked?: number;
+  notes?: string;
+}
+
 // ─── UI helpers ──────────────────────────────────────────────────────────────
 export interface SelectOption {
   value: string;
