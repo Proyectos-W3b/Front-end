@@ -5,26 +5,26 @@ import Layout           from '../components/layout/Layout';
 import AdminLayout      from '../components/layout/AdminLayout';
 
 // Auth principal (backend)
-import LoginPage          from '../pages/auth/LoginPage';
-import RegisterPage       from '../pages/auth/RegisterPage';
+import LoginPage          from '../features/auth/pages/LoginPage';
+import RegisterPage       from '../features/auth/pages/RegisterPage';
 
 // App
-import DashboardPage      from '../pages/dashboard/DashboardPage';
-import ProjectsPage       from '../pages/projects/ProjectsPage';
-import ProjectDetailPage  from '../pages/projects/ProjectDetailPage';
-import IncidentsPage      from '../pages/incidents/IncidentsPage';
-import ClientesPage        from '../pages/clientes/ClientesPage';
-import ClientesChatPage   from '../pages/clientes/ClientesChatPage';
-import ClienteDetailPage  from '../pages/clientes/ClienteDetailPage';
-import TrabajadoresPage   from '../pages/rrhh/TrabajadoresPage';
-import UsuariosPage       from '../pages/usuarios/UsuariosPage';
+import DashboardPage      from '../features/dashboard/pages/DashboardPage';
+import ProjectsPage       from '../features/projects/pages/ProjectsPage';
+import ProjectDetailPage  from '../features/projects/pages/ProjectDetailPage';
+import IncidentsPage      from '../features/incidents/pages/IncidentsPage';
+import ClientesPage        from '../features/clientes/pages/ClientesPage';
+import ClientesChatPage   from '../features/clientes/pages/ClientesChatPage';
+import ClienteDetailPage  from '../features/clientes/pages/ClienteDetailPage';
+import TrabajadoresPage   from '../features/rrhh/pages/TrabajadoresPage';
+import UsuariosPage       from '../features/usuarios/pages/UsuariosPage';
 
 // Admin panel (auth independiente — sin backend)
-import AdminLoginPage     from '../pages/admin/AdminLoginPage';
-import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
-import UsuariosAdminPage  from '../pages/admin/UsuariosAdminPage';
-import RolesPage          from '../pages/admin/RolesPage';
-import ConfiguracionPage  from '../pages/admin/ConfiguracionPage';
+import AdminLoginPage     from '../features/admin/pages/AdminLoginPage';
+import AdminDashboardPage from '../features/admin/pages/AdminDashboardPage';
+import UsuariosAdminPage  from '../features/admin/pages/UsuariosAdminPage';
+import RolesPage          from '../features/admin/pages/RolesPage';
+import ConfiguracionPage  from '../features/admin/pages/ConfiguracionPage';
 
 export default function AppRouter() {
   return (
