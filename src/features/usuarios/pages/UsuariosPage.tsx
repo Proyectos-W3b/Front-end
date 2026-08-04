@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { UserPlus, Trash2, Pencil, X } from 'lucide-react';
 import usuariosService from '../services/usuarios.service';
+import clientesService from '../../clientes/services/clientes.service';
 import { rolesApi } from '../../../services/api.service';
 import FiltersPanel from '../../../components/ui/FiltersPanel';
 import { FullPageSpinner } from '../../../components/ui/Spinner';
@@ -13,6 +14,9 @@ interface CreateForm {
   correo:     string;
   contrasena: string;
   rolId:      string;
+  empresa:    string;
+  telefono:   string;
+  direccion:  string;
 }
 
 interface EditForm {
@@ -20,7 +24,7 @@ interface EditForm {
   correo: string;
 }
 
-const EMPTY_CREATE: CreateForm = { nombre: '', correo: '', contrasena: '', rolId: '' };
+const EMPTY_CREATE: CreateForm = { nombre: '', correo: '', contrasena: '', rolId: '', empresa: '', telefono: '', direccion: '' };
 const EMPTY_EDIT:   EditForm   = { nombre: '', correo: '' };
 
 // ── Modal crear/editar ────────────────────────────────────────────────────────
@@ -41,6 +45,8 @@ function ModalUsuario({
   );
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
+
+  const esRolCliente = !inicial && roles.find((r) => r.idRol === createForm.rolId)?.nombre === 'cliente';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -133,6 +139,40 @@ function ModalUsuario({
                   ))}
                 </select>
               </div>
+
+              {esRolCliente && (
+                <>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider pt-2">Datos de empresa</p>
+                  <div>
+                    <label className="label">Empresa *</label>
+                    <input
+                      className="input"
+                      placeholder="Nombre de la empresa"
+                      value={createForm.empresa}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, empresa: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Teléfono</label>
+                    <input
+                      className="input"
+                      placeholder="+51 999 000 111"
+                      value={createForm.telefono}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, telefono: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Dirección</label>
+                    <input
+                      className="input"
+                      placeholder="Av. Ejemplo 123"
+                      value={createForm.direccion}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, direccion: e.target.value }))}
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -188,8 +228,20 @@ export default function UsuariosPage() {
 
   useEffect(() => { cargarDatos(); }, []);
 
-  const handleCrear = (data: any) =>
-    usuariosService.create(data).then(() => { success('Usuario creado', `"${data.nombre}" ya puede iniciar sesión.`); cargarDatos(); });
+  const handleCrear = async (data: any) => {
+    const { empresa, telefono, direccion, ...usuarioData } = data;
+    const nuevoUsuario = await usuariosService.create(usuarioData);
+    if (empresa) {
+      await clientesService.create({
+        usuarioId: nuevoUsuario.id,
+        empresa,
+        telefono:  telefono  || undefined,
+        direccion: direccion || undefined,
+      });
+    }
+    success('Usuario creado', `"${data.nombre}" ya puede iniciar sesión.`);
+    cargarDatos();
+  };
   const handleEditar = (data: any) =>
     usuariosService.update(modalEditar!.id, data).then(() => { success('Usuario actualizado'); cargarDatos(); });
 
