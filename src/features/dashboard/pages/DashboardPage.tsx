@@ -4,6 +4,7 @@ import { useAuthStore } from '../../../store/auth.store';
 import Badge from '../../../components/ui/Badge';
 import { FullPageSpinner } from '../../../components/ui/Spinner';
 import { toProjectPath } from '../../../lib/slug';
+import { PROJECT_ESTADO_LABELS } from '../../projects/constants';
 import { useDashboardData } from './useDashboardData';
 
 export default function DashboardPage() {
@@ -173,7 +174,7 @@ export default function DashboardPage() {
                           {p.nombre}
                         </Link>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Badge value={p.estado} />
+                          <Badge value={p.estado} label={PROJECT_ESTADO_LABELS[p.estado] ?? p.estado} />
                           <span className="text-xs font-semibold text-slate-500 tabular-nums">{pct}%</span>
                         </div>
                       </div>
@@ -264,7 +265,7 @@ export default function DashboardPage() {
                           {p.nombre}
                         </Link>
                       </td>
-                      <td className="table-td"><Badge value={p.estado} /></td>
+                      <td className="table-td"><Badge value={p.estado} label={PROJECT_ESTADO_LABELS[p.estado] ?? p.estado} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -498,7 +499,7 @@ export default function DashboardPage() {
                         {p.nombre}
                       </Link>
                     </td>
-                    <td className="table-td"><Badge value={p.estado} /></td>
+                    <td className="table-td"><Badge value={p.estado} label={PROJECT_ESTADO_LABELS[p.estado] ?? p.estado} /></td>
                   </tr>
                 ))}
               </tbody>

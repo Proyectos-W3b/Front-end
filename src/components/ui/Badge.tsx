@@ -1,5 +1,6 @@
 const COLORS: Record<string, string> = {
   // proyecto
+  planificado: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/70',
   activo:      'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70',
   inactivo:    'bg-slate-100 text-slate-600 ring-1 ring-slate-200/70',
   completado:  'bg-blue-50 text-blue-700 ring-1 ring-blue-200/70',

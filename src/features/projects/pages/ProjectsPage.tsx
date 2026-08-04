@@ -1,6 +1,6 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Building2, Settings2, Pencil, Trash2, Eye, FileText, Tag, CalendarDays } from 'lucide-react';
+import { ExternalLink, Building2, Settings2, Pencil, Trash2, Eye, FileText, Tag, CalendarDays, LayoutGrid, Table2 } from 'lucide-react';
 import projectsService, { CreateProjectData } from '../services/projects.service';
 import clientesService from '../../clientes/services/clientes.service';
 import actualizacionesService from '../services/actualizaciones.service';
@@ -22,6 +22,10 @@ import { useToast } from '../../../components/ui/Toast';
 import { useAuthStore } from '../../../store/auth.store';
 import { toProjectPath } from '../../../lib/slug';
 import type { Project, Cliente } from '../../../types';
+import { PROJECT_ESTADO_LABELS } from '../constants';
+import ProjectsFilters, { EMPTY_FILTERS, type ProjectsFiltersState } from './ProjectsFilters';
+import ProjectsKanbanView from './ProjectsKanbanView';
+import { useProjectsEquipo } from './hooks/useProjectsEquipo';
 
 const toCalendarDate = (iso?: string): CalendarDate | null => {
   if (!iso) return null;
@@ -30,7 +34,7 @@ const toCalendarDate = (iso?: string): CalendarDate | null => {
 
 const EMPTY_FORM: CreateProjectData = {
   clienteId: '', nombre: '', descripcion: '', tipo: 'software',
-  estado: 'activo', fechaInicio: new Date().toISOString().split('T')[0],
+  estado: 'planificado', fechaInicio: new Date().toISOString().split('T')[0],
 };
 
 export default function ProjectsPage() {
@@ -46,6 +50,33 @@ export default function ProjectsPage() {
   const [form,      setForm]      = useState<CreateProjectData>(EMPTY_FORM);
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
+  const [view,      setView]      = useState<'kanban' | 'tabla'>('tabla');
+  const [filters,   setFilters]   = useState<ProjectsFiltersState>(EMPTY_FILTERS);
+
+  const equipoPorProyecto = useProjectsEquipo(projects.map((p) => p.id));
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      if (filters.search && !p.nombre.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      if (filters.estado && p.estado !== filters.estado) return false;
+      if (filters.clienteId && p.clienteId !== filters.clienteId) return false;
+      if (filters.trabajadorId) {
+        const equipo = equipoPorProyecto[p.id] ?? [];
+        if (!equipo.some((a) => a.trabajadorId === filters.trabajadorId)) return false;
+      }
+      return true;
+    });
+  }, [projects, filters, equipoPorProyecto]);
+
+  const handleMoveKanban = async (project: Project, nuevoEstado: string) => {
+    try {
+      await projectsService.update(project.id, { estado: nuevoEstado });
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, estado: nuevoEstado } : p)));
+      success('Estado actualizado', `"${project.nombre}" pasó a ${PROJECT_ESTADO_LABELS[nuevoEstado] ?? nuevoEstado}.`);
+    } catch {
+      toastError('No se pudo cambiar el estado');
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -141,7 +172,7 @@ export default function ProjectsPage() {
       ),
     },
     { key: 'tipo',   header: 'Tipo',   render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span> },
-    { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
+    { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} label={PROJECT_ESTADO_LABELS[p.estado] ?? p.estado} /> },
     {
       key: 'avance', header: 'Avance', className: 'w-32',
       render: (p) => avanceMap[p.id] !== undefined
@@ -187,7 +218,7 @@ export default function ProjectsPage() {
       ),
     },
     { key: 'tipo',   header: 'Tipo',   render: (p) => <span className="text-slate-500 text-xs">{p.tipo}</span> },
-    { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
+    { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} label={PROJECT_ESTADO_LABELS[p.estado] ?? p.estado} /> },
     {
       key: 'avance', header: 'Avance', className: 'w-32',
       render: (p) => avanceMap[p.id] !== undefined
@@ -214,14 +245,33 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{isAdmin ? 'Proyectos' : 'Mis Proyectos'}</h2>
           <p className="text-sm text-slate-500">
-            {projects.length} proyecto{projects.length !== 1 ? 's' : ''} registrado{projects.length !== 1 ? 's' : ''}
+            {filteredProjects.length} proyecto{filteredProjects.length !== 1 ? 's' : ''} registrado{filteredProjects.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {isAdmin && <button className="btn-primary" onClick={openCreate}>+ Nuevo proyecto</button>}
+        <div className="flex items-center gap-2">
+          <nav className="flex items-center gap-1 bg-white border border-slate-100 rounded-xl p-1 shadow-[0_1px_4px_rgba(15,23,42,0.04)]">
+            {([
+              { key: 'tabla', label: 'Tabla', icon: Table2 },
+              { key: 'kanban', label: 'Tablero', icon: LayoutGrid },
+            ] as const).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setView(key)}
+                className={[
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all',
+                  view === key ? 'bg-blue-600 text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                <Icon className="w-3.5 h-3.5" /> {label}
+              </button>
+            ))}
+          </nav>
+          {isAdmin && <button className="btn-primary" onClick={openCreate}>+ Nuevo proyecto</button>}
+        </div>
       </div>
 
       {projects.length === 0 ? (
@@ -231,7 +281,29 @@ export default function ProjectsPage() {
           action={isAdmin ? { label: '+ Nuevo proyecto', onClick: openCreate } : undefined}
         />
       ) : (
-        <DataTable columns={isAdmin ? COLUMNS_ADMIN : COLUMNS_CLIENTE} data={projects} emptyText="Sin proyectos registrados" />
+        <>
+          <ProjectsFilters
+            filters={filters}
+            onChange={(patch) => setFilters((prev) => ({ ...prev, ...patch }))}
+            onClear={() => setFilters(EMPTY_FILTERS)}
+            clientes={clientes}
+            showEstado={view === 'tabla'}
+          />
+
+          {filteredProjects.length === 0 ? (
+            <EmptyState title="Sin resultados" description="Ningún proyecto coincide con los filtros aplicados" />
+          ) : view === 'kanban' ? (
+            <ProjectsKanbanView
+              projects={filteredProjects}
+              clienteName={clienteName}
+              avanceMap={avanceMap}
+              equipoPorProyecto={equipoPorProyecto}
+              onMove={handleMoveKanban}
+            />
+          ) : (
+            <DataTable columns={isAdmin ? COLUMNS_ADMIN : COLUMNS_CLIENTE} data={filteredProjects} emptyText="Sin proyectos registrados" />
+          )}
+        </>
       )}
 
       <Modal size="lg" isOpen={modal !== null} onOpenChange={(v) => { if (!v) closeModal(); }}>
@@ -296,9 +368,10 @@ export default function ProjectsPage() {
                   selectedKey={form.estado}
                   onSelectionChange={(key) => setForm({ ...form, estado: String(key) })}
                 >
-                  <SelectItem id="activo">Activo</SelectItem>
-                  <SelectItem id="inactivo">Inactivo</SelectItem>
-                  <SelectItem id="completado">Completado</SelectItem>
+                  <SelectItem id="planificado">{PROJECT_ESTADO_LABELS.planificado}</SelectItem>
+                  <SelectItem id="activo">{PROJECT_ESTADO_LABELS.activo}</SelectItem>
+                  <SelectItem id="inactivo">{PROJECT_ESTADO_LABELS.inactivo}</SelectItem>
+                  <SelectItem id="completado">{PROJECT_ESTADO_LABELS.completado}</SelectItem>
                 </Select>
               </div>
             </FormSection>

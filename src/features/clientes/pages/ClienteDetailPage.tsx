@@ -7,6 +7,7 @@ import DataTable from '../../../components/ui/DataTable';
 import { clientesApi, proyectsApi, usuariosApi } from '../../../services/api.service';
 import { FullPageSpinner } from '../../../components/ui/Spinner';
 import { toProjectPath } from '../../../lib/slug';
+import { PROJECT_ESTADO_LABELS } from '../../projects/constants';
 import type { Cliente, Project } from '../../../types';
 
 export default function ClienteDetailPage() {
@@ -161,7 +162,7 @@ export default function ClienteDetailPage() {
           <DataTable<Project>
             columns={[
               { key: 'nombre', header: 'Proyecto', render: (p) => <span className="font-medium text-slate-800">{p.nombre}</span> },
-              { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} /> },
+              { key: 'estado', header: 'Estado', render: (p) => <Badge value={p.estado} label={PROJECT_ESTADO_LABELS[p.estado] ?? p.estado} /> },
               {
                 key: 'inicio', header: 'Inicio',
                 render: (p) => (

@@ -8,6 +8,7 @@ import StatCard from '../../../../components/ui/StatCard';
 import MetaChip from '../../../../components/ui/MetaChip';
 import { useToast } from '../../../../components/ui/Toast';
 import type { ActualizacionProyecto, Fase, Incidencia, Project } from '../../../../types';
+import { PROJECT_ESTADO_LABELS } from '../../constants';
 import { useProject } from './hooks/useProject';
 
 export default function ProjectSidebar({
@@ -66,7 +67,7 @@ export default function ProjectSidebar({
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-snug">{project.nombre}</h2>
-            <div className="mt-1.5"><Badge value={project.estado} /></div>
+            <div className="mt-1.5"><Badge value={project.estado} label={PROJECT_ESTADO_LABELS[project.estado] ?? project.estado} /></div>
           </div>
           <ProgressRing value={progreso} size={72} strokeWidth={7} />
         </div>
@@ -130,9 +131,10 @@ export default function ProjectSidebar({
               <label className="label">Estado</label>
               <select className="input" value={form.estado}
                 onChange={(e) => setForm({ ...form, estado: e.target.value })}>
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
-                <option value="completado">Completado</option>
+                <option value="planificado">{PROJECT_ESTADO_LABELS.planificado}</option>
+                <option value="activo">{PROJECT_ESTADO_LABELS.activo}</option>
+                <option value="inactivo">{PROJECT_ESTADO_LABELS.inactivo}</option>
+                <option value="completado">{PROJECT_ESTADO_LABELS.completado}</option>
               </select>
             </div>
           </div>
