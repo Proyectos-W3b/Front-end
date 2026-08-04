@@ -206,3 +206,17 @@ export interface SelectOption {
   value: string;
   label: string;
 }
+
+// ─── Notificaciones ────────────────────────────────────────────────────────
+export interface Notificacion {
+  id: string;
+  usuarioId: string;
+  usuarioRol?: string;
+  tipo: string;
+  titulo: string;
+  mensaje: string;
+  entidadTipo?: 'proyecto' | 'incidencia' | 'usuario';
+  entidadId?: string;
+  leido: boolean;
+  fecha: string;
+}

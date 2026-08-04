@@ -1,7 +1,8 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { UserPlus, Trash2, Pencil, X } from 'lucide-react';
 import usuariosService from '../services/usuarios.service';
 import { rolesApi } from '../../../services/api.service';
+import FiltersPanel from '../../../components/ui/FiltersPanel';
 import { FullPageSpinner } from '../../../components/ui/Spinner';
 import Spinner from '../../../components/ui/Spinner';
 import { useToast } from '../../../components/ui/Toast';
@@ -155,6 +156,19 @@ export default function UsuariosPage() {
   const [loading,     setLoading]     = useState(true);
   const [modalNuevo,  setModalNuevo]  = useState(false);
   const [modalEditar, setModalEditar] = useState<User | null>(null);
+  const [search,      setSearch]      = useState('');
+  const [rolFiltro,   setRolFiltro]   = useState('');
+
+  const usuariosFiltrados = useMemo(() => {
+    return usuarios.filter((u) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!u.nombre.toLowerCase().includes(q) && !u.correo.toLowerCase().includes(q)) return false;
+      }
+      if (rolFiltro && u.rol !== rolFiltro) return false;
+      return true;
+    });
+  }, [usuarios, search, rolFiltro]);
 
   const cargarDatos = async () => {
     setLoading(true);
@@ -198,13 +212,35 @@ export default function UsuariosPage() {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Usuarios</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {usuarios.length} usuario{usuarios.length !== 1 ? 's' : ''} registrado{usuarios.length !== 1 ? 's' : ''}
+            {usuariosFiltrados.length} usuario{usuariosFiltrados.length !== 1 ? 's' : ''} registrado{usuariosFiltrados.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button onClick={() => setModalNuevo(true)} className="btn-primary gap-2 flex items-center">
           <UserPlus className="w-4 h-4" /> Nuevo usuario
         </button>
       </div>
+
+      {/* Filtros */}
+      <FiltersPanel onClear={() => { setSearch(''); setRolFiltro(''); }}>
+        <div>
+          <label className="label">Buscar</label>
+          <input
+            className="input"
+            placeholder="Nombre o correo"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label">Rol</label>
+          <select className="input" value={rolFiltro} onChange={(e) => setRolFiltro(e.target.value)}>
+            <option value="">Todos</option>
+            {roles.map((r) => (
+              <option key={r.idRol} value={r.nombre} className="capitalize">{r.nombre}</option>
+            ))}
+          </select>
+        </div>
+      </FiltersPanel>
 
       {/* Tabla */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.05)] overflow-hidden">
@@ -218,13 +254,13 @@ export default function UsuariosPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {usuarios.length === 0 ? (
+            {usuariosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={4} className="py-12 text-center text-sm text-slate-400">
-                  Sin usuarios registrados
+                  {usuarios.length === 0 ? 'Sin usuarios registrados' : 'Ningún usuario coincide con los filtros'}
                 </td>
               </tr>
-            ) : usuarios.map((u) => (
+            ) : usuariosFiltrados.map((u) => (
               <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
                 <td className="table-td font-medium text-slate-900">{u.nombre}</td>
                 <td className="table-td text-slate-500">{u.correo}</td>

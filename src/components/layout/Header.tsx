@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, Bell } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   title: string;
@@ -35,10 +36,7 @@ export default function Header({ title, onToggle, sidebarOpen }: HeaderProps) {
       <div className="flex items-center gap-1">
 
         {/* Bell */}
-        <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-        </button>
+        <NotificationBell />
 
         {/* Divider */}
         <div className="w-px h-5 bg-slate-200 mx-2" />
